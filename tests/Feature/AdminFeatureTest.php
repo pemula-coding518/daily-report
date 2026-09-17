@@ -6,7 +6,6 @@ use App\Models\AdminHrdUser;
 use App\Models\DailyReport;
 use App\Models\Division;
 use App\Models\Employee;
-use App\Models\EmployeeAttendance;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -56,7 +55,7 @@ class AdminFeatureTest extends TestCase
         $response->assertRedirect(route('admin.login'));
     }
 
-    public function test_admin_can_view_dashboard_with_unsubmitted_employees(): void
+    public function test_admin_can_view_dashboard_with_report_metrics(): void
     {
         // emp1 submits report
         DailyReport::create([
@@ -77,26 +76,10 @@ class AdminFeatureTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('Dashboard Monitoring Daily Report');
-        // emp2 has not submitted, should be in unsubmitted list
-        $response->assertSee('Andi Teknisi');
-    }
-
-    public function test_dashboard_excludes_on_leave_employees_from_unsubmitted_list(): void
-    {
-        // emp2 is on leave (Cuti)
-        EmployeeAttendance::create([
-            'employee_id' => $this->emp2->id,
-            'date' => '2026-09-17',
-            'status' => 'cuti',
-            'note' => 'Cuti tahunan',
-        ]);
-
-        $response = $this->actingAs($this->admin, 'admin_hrd')->get(route('admin.dashboard', ['date' => '2026-09-17']));
-
-        $response->assertStatus(200);
-        // emp1 is required to report, emp2 is on leave so excluded
-        $response->assertSee($this->emp1->name);
-        $response->assertDontSee($this->emp2->name);
+        $response->assertSee('Total Karyawan Aktif');
+        $response->assertSee('Laporan Tanggal Ini');
+        $response->assertSee('Budi Teknisi');
+        $response->assertSee('Teknisi');
     }
 
     public function test_admin_can_create_and_toggle_employee(): void
@@ -122,24 +105,6 @@ class AdminFeatureTest extends TestCase
             'id' => $employee->id,
             'is_active' => false,
         ]);
-    }
-
-    public function test_admin_can_record_attendance_exception(): void
-    {
-        $response = $this->actingAs($this->admin, 'admin_hrd')->post(route('admin.attendances.store'), [
-            'employee_id' => $this->emp1->id,
-            'date' => '2026-09-17',
-            'status' => 'sakit',
-            'note' => 'Surat dokter terlampir',
-        ]);
-
-        $response->assertRedirect(route('admin.attendances.index'));
-        $this->assertDatabaseHas('employee_attendances', [
-            'employee_id' => $this->emp1->id,
-            'status' => 'sakit',
-        ]);
-        $attendance = EmployeeAttendance::where('employee_id', $this->emp1->id)->first();
-        $this->assertEquals('2026-09-17', $attendance->date->toDateString());
     }
 
     public function test_admin_can_cancel_and_restore_report(): void

@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminUserController;
-use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EmployeeController;
@@ -39,9 +38,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:admin_hrd', 'admin.act
     Route::resource('employees', EmployeeController::class)->except(['show', 'destroy']);
     Route::patch('/employees/{employee}/toggle-status', [EmployeeController::class, 'toggleStatus'])
         ->name('employees.toggle-status');
-
-    // Attendance / Leave Exception Management
-    Route::resource('attendances', AttendanceController::class)->except(['show', 'edit', 'update']);
 
     // Daily Reports Management
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');

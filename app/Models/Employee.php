@@ -45,14 +45,6 @@ class Employee extends Model
     }
 
     /**
-     * @return HasMany<EmployeeAttendance, $this>
-     */
-    public function attendances(): HasMany
-    {
-        return $this->hasMany(EmployeeAttendance::class);
-    }
-
-    /**
      * Scope query to only active employees.
      *
      * @param  Builder<Employee>  $query

@@ -5,10 +5,10 @@
                 <h2 class="font-bold text-xl text-slate-800 leading-tight">
                     {{ __('Dashboard Monitoring Daily Report') }}
                 </h2>
-                <p class="text-xs text-slate-500 mt-0.5">Pantau tingkat kepatuhan dan status pengiriman laporan harian karyawan.</p>
+                <p class="text-xs text-slate-500 mt-0.5">Pantau ringkasan dan arsip laporan harian pekerjaan karyawan kantor.</p>
             </div>
 
-            <!-- Date & Division Filter Form (Primary Dashboard Filter) -->
+            <!-- Date & Division Filter Form -->
             <form method="GET" action="{{ route('admin.dashboard') }}" class="flex flex-wrap items-center gap-2">
                 <div>
                     <input type="date" name="date" value="{{ $selectedDate }}" 
@@ -59,11 +59,15 @@
                     </div>
                 </div>
 
-                @if ($attendances->count() > 0)
-                    <div class="text-xs text-slate-500 font-medium">
-                        <span class="font-bold text-amber-600">{{ $attendances->count() }} karyawan</span> tercatat cuti/sakit/libur (dikecualikan dari wajib lapor).
-                    </div>
-                @endif
+                <div class="hidden sm:flex items-center gap-2">
+                    <a href="{{ route('admin.reports.index', ['date' => $selectedDate, 'division_id' => $selectedDivisionId]) }}" 
+                       class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        Buka Laporan Tanggal Ini
+                    </a>
+                </div>
             </div>
 
             <!-- 1. STAT CARDS -->
@@ -82,130 +86,56 @@
                     </div>
                 </div>
 
-                <!-- Card 2: Wajib Lapor -->
+                <!-- Card 2: Laporan Masuk (Tanggal Terpilih) -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between">
                     <div>
-                        <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Wajib Lapor</p>
-                        <h4 class="text-3xl font-extrabold text-indigo-600 mt-2">{{ $wajibLaporCount }}</h4>
-                        <p class="text-xs text-slate-500 mt-1">Setelah dikurangi cuti/libur</p>
+                        <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Laporan Tanggal Ini</p>
+                        <h4 class="text-3xl font-extrabold text-indigo-600 mt-2">{{ $submittedCount }}</h4>
+                        <p class="text-xs text-slate-500 mt-1">Laporan masuk diverifikasi</p>
                     </div>
                     <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
-                    </div>
-                </div>
-
-                <!-- Card 3: Laporan Masuk -->
-                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between">
-                    <div>
-                        <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Laporan Masuk</p>
-                        <h4 class="text-3xl font-extrabold text-emerald-600 mt-2">{{ $submittedCount }}</h4>
-                        <p class="text-xs text-slate-500 mt-1">{{ $unsubmittedEmployees->count() }} belum melapor</p>
-                    </div>
-                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                     </div>
                 </div>
 
-                <!-- Card 4: Persentase Kepatuhan -->
+                <!-- Card 3: Total Seluruh Laporan (All Time) -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between">
                     <div>
-                        <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Kepatuhan</p>
-                        <h4 class="text-3xl font-extrabold {{ $complianceRate >= 90 ? 'text-emerald-600' : ($complianceRate >= 70 ? 'text-amber-600' : 'text-rose-600') }} mt-2">
-                            {{ $complianceRate }}%
-                        </h4>
-                        <div class="w-24 bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
-                            <div class="h-1.5 rounded-full {{ $complianceRate >= 90 ? 'bg-emerald-500' : ($complianceRate >= 70 ? 'bg-amber-500' : 'bg-rose-500') }}" style="width: {{ $complianceRate }}%"></div>
-                        </div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Arsip Laporan</p>
+                        <h4 class="text-3xl font-extrabold text-emerald-600 mt-2">{{ $totalReportsAllTime }}</h4>
+                        <p class="text-xs text-slate-500 mt-1">Keseluruhan riwayat laporan</p>
                     </div>
-                    <div class="w-12 h-12 rounded-2xl {{ $complianceRate >= 90 ? 'bg-emerald-50 text-emerald-600' : ($complianceRate >= 70 ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600') }} flex items-center justify-center font-bold">
-                        %
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Card 4: Total Divisi Kantor -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Unit / Divisi</p>
+                        <h4 class="text-3xl font-extrabold text-amber-600 mt-2">{{ $divisions->count() }}</h4>
+                        <p class="text-xs text-slate-500 mt-1">Divisi aktif dengan form</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
                     </div>
                 </div>
             </div>
 
-            <!-- 2. KARYAWAN BELUM MELAPOR -->
+            <!-- 2. REKAP LAPORAN MASUK PER DIVISI -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="p-6 border-b border-slate-200 flex items-center justify-between">
                     <div>
-                        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                            <span>Karyawan Belum Melapor</span>
-                            <span class="px-2 py-0.5 rounded-full text-xs font-bold {{ $unsubmittedEmployees->count() > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700' }}">
-                                {{ $unsubmittedEmployees->count() }} Orang
-                            </span>
-                        </h3>
-                        <p class="text-xs text-slate-500 mt-0.5">Daftar karyawan yang belum mengirimkan laporan harian pada tanggal yang dipilih.</p>
+                        <h3 class="text-base font-bold text-slate-900">Rekap Laporan Masuk Per Divisi</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Jumlah laporan yang masuk pada tanggal yang dipilih serta total arsip per divisi.</p>
                     </div>
-
-                    @if ($unsubmittedEmployees->count() > 0)
-                        <a href="{{ route('admin.attendances.create', ['date' => $selectedDate]) }}" class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            Tandai Cuti / Sakit
-                        </a>
-                    @endif
-                </div>
-
-                @if ($unsubmittedEmployees->count() > 0)
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm text-slate-600">
-                            <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-200">
-                                <tr>
-                                    <th class="py-3 px-6">Nama Karyawan</th>
-                                    <th class="py-3 px-6">Divisi</th>
-                                    <th class="py-3 px-6">Status Kehadiran</th>
-                                    <th class="py-3 px-6 text-right">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                @foreach ($unsubmittedEmployees as $emp)
-                                    <tr class="hover:bg-slate-50/70 transition">
-                                        <td class="py-3.5 px-6 font-semibold text-slate-900">
-                                            {{ $emp->name }}
-                                        </td>
-                                        <td class="py-3.5 px-6">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-                                                {{ $emp->division->name ?? '-' }}
-                                            </span>
-                                        </td>
-                                        <td class="py-3.5 px-6">
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-600 border border-rose-100">
-                                                Belum Mengirim Laporan
-                                            </span>
-                                        </td>
-                                        <td class="py-3.5 px-6 text-right">
-                                            <a href="{{ route('admin.attendances.create', ['date' => $selectedDate, 'employee_id' => $emp->id]) }}" 
-                                               class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition">
-                                                Catat Cuti/Sakit &rarr;
-                                            </a>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @else
-                    <div class="p-8 text-center">
-                        <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                            </svg>
-                        </div>
-                        <h4 class="text-sm font-bold text-slate-800">Semua Karyawan Sudah Melapor!</h4>
-                        <p class="text-xs text-slate-500 mt-1">Seluruh karyawan yang wajib lapor pada tanggal ini telah mengirimkan laporan harian.</p>
-                    </div>
-                @endif
-            </div>
-
-            <!-- 3. REKAP PER DIVISI -->
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="p-6 border-b border-slate-200">
-                    <h3 class="text-base font-bold text-slate-900">Rekap Kepatuhan Per Divisi</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">Perbandingan jumlah laporan yang masuk dibanding target karyawan per divisi.</p>
                 </div>
 
                 <div class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -213,25 +143,34 @@
                         <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition">
                             <div class="flex items-center justify-between">
                                 <h4 class="font-bold text-sm text-slate-800">{{ $div['name'] }}</h4>
-                                <span class="text-xs font-extrabold px-2 py-0.5 rounded-full {{ $div['percentage'] >= 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700' }}">
-                                    {{ $div['percentage'] }}%
+                                <span class="text-xs font-bold px-2.5 py-0.5 rounded-full {{ $div['submitted'] > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600' }}">
+                                    {{ $div['submitted'] }} Laporan Masuk
                                 </span>
                             </div>
 
-                            <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
-                                <span>Laporan: <strong class="text-slate-800">{{ $div['submitted'] }}</strong> / {{ $div['wajib_lapor'] }}</span>
-                                <span>Total: {{ $div['total_employees'] }} staf</span>
+                            <div class="mt-3 space-y-1 text-xs text-slate-500">
+                                <div class="flex items-center justify-between">
+                                    <span>Karyawan Aktif:</span>
+                                    <strong class="text-slate-800">{{ $div['total_employees'] }} Staf</strong>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>Total Arsip Divisi:</span>
+                                    <strong class="text-slate-800">{{ $div['total_all_time'] }} Laporan</strong>
+                                </div>
                             </div>
 
-                            <div class="w-full bg-slate-200 rounded-full h-2 mt-2 overflow-hidden">
-                                <div class="h-2 rounded-full {{ $div['percentage'] >= 100 ? 'bg-emerald-500' : 'bg-indigo-600' }}" style="width: {{ $div['percentage'] }}%"></div>
+                            <div class="mt-3 pt-3 border-t border-slate-200/60 flex justify-end">
+                                <a href="{{ route('admin.reports.index', ['date' => $selectedDate, 'division_id' => $div['id']]) }}" 
+                                   class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition">
+                                    Lihat Laporan Divisi &rarr;
+                                </a>
                             </div>
                         </div>
                     @endforeach
                 </div>
             </div>
 
-            <!-- 4. DAFTAR LAPORAN TERBARU -->
+            <!-- 3. DAFTAR LAPORAN TERBARU -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="p-6 border-b border-slate-200 flex items-center justify-between">
                     <div>
@@ -239,9 +178,18 @@
                         <p class="text-xs text-slate-500 mt-0.5">10 pengiriman laporan harian paling mutakhir.</p>
                     </div>
 
-                    <a href="{{ route('admin.reports.index') }}" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition">
-                        Lihat Semua Laporan &rarr;
-                    </a>
+                    <div class="flex items-center gap-3">
+                        <a href="{{ route('admin.reports.export', ['date' => $selectedDate, 'division_id' => $selectedDivisionId]) }}" 
+                           class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            Export CSV
+                        </a>
+                        <a href="{{ route('admin.reports.index') }}" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition">
+                            Lihat Semua Laporan &rarr;
+                        </a>
+                    </div>
                 </div>
 
                 @if ($recentReports->count() > 0)
@@ -253,6 +201,7 @@
                                     <th class="py-3 px-6">Nama Karyawan</th>
                                     <th class="py-3 px-6">Divisi</th>
                                     <th class="py-3 px-6">Waktu Submit</th>
+                                    <th class="py-3 px-6">Status</th>
                                     <th class="py-3 px-6 text-right">Detail</th>
                                 </tr>
                             </thead>
@@ -273,6 +222,17 @@
                                         </td>
                                         <td class="py-3 px-6 text-xs text-slate-500">
                                             {{ $report->submitted_at->format('H:i, d/m/Y') }}
+                                        </td>
+                                        <td class="py-3 px-6">
+                                            @if ($report->status === 'active')
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    Aktif
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                                    Dibatalkan
+                                                </span>
+                                            @endif
                                         </td>
                                         <td class="py-3 px-6 text-right">
                                             <a href="{{ route('admin.reports.show', $report) }}" class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition">

@@ -1,6 +1,6 @@
 # Daily Report — Sistem Pelaporan Pekerjaan Harian Kantor
 
-Aplikasi web internal kantor berbasis **Laravel 11** yang dirancang untuk mempermudah karyawan dalam mengisi laporan pekerjaan harian secara cepat tanpa perlu login, serta menyediakan dashboard monitoring kepatuhan dan manajemen data terpusat bagi tim **Admin & HRD**.
+Aplikasi web internal kantor berbasis **Laravel 11** yang dirancang untuk mempermudah karyawan dalam mengisi laporan pekerjaan harian secara cepat tanpa perlu login, serta menyediakan dashboard monitoring dan pengelolaan laporan terpusat bagi tim **Admin & HRD**.
 
 ---
 
@@ -10,7 +10,7 @@ Aplikasi web internal kantor berbasis **Laravel 11** yang dirancang untuk memper
   - [1. Portal Karyawan (Tanpa Login)](#1-portal-karyawan-tanpa-login)
   - [2. Dashboard Monitoring Admin & HRD](#2-dashboard-monitoring-admin--hrd)
   - [3. Manajemen & Moderasi Laporan](#3-manajemen--moderasi-laporan)
-  - [4. Manajemen Karyawan & Absensi Khusus](#4-manajemen-karyawan--absensi-khusus)
+  - [4. Manajemen Master Karyawan](#4-manajemen-master-karyawan)
   - [5. Sistem Autentikasi & Hak Akses (Role-Based)](#5-sistem-autentikasi--hak-akses-role-based)
 - [Teknologi yang Digunakan](#-teknologi-yang-digunakan)
 - [Struktur Database Utama](#-struktur-database-utama)
@@ -25,7 +25,7 @@ Aplikasi web internal kantor berbasis **Laravel 11** yang dirancang untuk memper
 ## ✨ Fitur Utama
 
 ### 1. Portal Karyawan (Tanpa Login)
-- **Akses Langsung**: Karyawan membuka portal publik (`/`) tanpa perlu proses autentikasi/login yang merepotkan.
+- **Akses Langsung**: Karyawan membuka portal publik (`/`) tanpa perlu proses autentikasi/login.
 - **Pemilihan Tanggal Fleksibel**: Tanggal laporan dapat disesuaikan dengan kebutuhan operasional pekerjaan.
 - **Dropdown Reaktif**: Pilihan divisi memuat daftar nama karyawan aktif secara dinamis via AJAX.
 - **Formulir Spesifik 6 Divisi**:
@@ -40,33 +40,29 @@ Aplikasi web internal kantor berbasis **Laravel 11** yang dirancang untuk memper
   - Snapshot nama karyawan, nama divisi, kode divisi, dan versi formulir disimpan bersama laporan agar riwayat historis tetap valid meskipun data master berubah di masa depan.
 
 ### 2. Dashboard Monitoring Admin & HRD
-- **Filter Tanggal & Divisi**: Mengubah tanggal atau divisi secara instan memperbarui seluruh indikator performa.
-- **Kartu Metrik**: Total Karyawan Aktif, Karyawan Wajib Lapor, Jumlah Laporan Masuk, dan Tingkat Kepatuhan (%).
-- **Tabel Karyawan Belum Melapor**:
-  - Menampilkan daftar nama karyawan yang belum mengirimkan laporan pada tanggal terpilih.
-  - **Pengecualian Otomatis**: Karyawan berstatus Cuti, Sakit, Izin, Libur, atau karyawan yang baru bergabung setelah tanggal terpilih secara cerdas dikecualikan dari perhitungan wajib lapor.
-  - Aksi cepat untuk menandai status Cuti/Sakit langsung dari dashboard.
-- **Progress Bar Kepatuhan Per Divisi**: Visualisasi rasio pengisian laporan per unit kerja.
+- **Filter Tanggal & Divisi**: Mengubah tanggal atau divisi secara instan memperbarui seluruh data laporan yang ditampilkan.
+- **Kartu Metrik**: Total Karyawan Aktif, Laporan Masuk (Tanggal Terpilih), Total Arsip Laporan (All Time), dan Total Unit Divisi.
+- **Rekap Laporan Per Divisi**: Jumlah laporan yang masuk pada tanggal terpilih, total staf aktif, dan total arsip per unit kerja, lengkap dengan link filter cepat per divisi.
+- **Daftar Laporan Terbaru**: Menampilkan 10 pengiriman laporan terbaru dengan status aktif/dibatalkan dan akses cepat ke detail laporan.
 
 ### 3. Manajemen & Moderasi Laporan
 - **Filter Komprehensif**: Pencarian berdasarkan rentang tanggal (`start_date` – `end_date`), divisi, status laporan (*Aktif/Dibatalkan*), dan pencarian nama.
 - **Tampilan Detail Laporan**: Format rapi untuk data payload JSON spesifik tiap divisi.
 - **Koreksi & Edit**: Staf Admin/HRD dapat membantu mengedit konten laporan jika ada kesalahan input dari karyawan.
 - **Pembatalan & Pemulihan**: Status laporan dapat diubah menjadi `cancelled` atau `active` (soft-status) agar integritas pengiriman tetap terjaga.
-- **Ekspor CSV / Excel**: Fitur unduh laporan berformat CSV dengan *UTF-8 Byte Order Mark (BOM)* agar langsung terbaca rapi di Microsoft Excel tanpa masalah karakter khusus.
+- **Ekspor CSV / Excel**: Fitur unduh laporan berformat CSV dengan *UTF-8 Byte Order Mark (BOM)* agar langsung terbaca rapi di Microsoft Excel.
 
-### 4. Manajemen Karyawan & Absensi Khusus
+### 4. Manajemen Master Karyawan
 - **Master Karyawan**: Penambahan, pengubahan data, dan penugasan divisi.
-- **Toggle Status Aktif**: Menonaktifkan karyawan yang keluar/cuti panjang tanpa menghapus data historis pelaporan.
-- **Pencatatan Kehadiran Khusus**: Input izin tidak masuk kerja (*Cuti, Sakit, Izin, Libur Kantor*) dengan keterangan pendukung.
+- **Toggle Status Aktif**: Menonaktifkan karyawan yang keluar/cuti panjang tanpa menghapus data historis pelaporan (karyawan non-aktif otomatis disembunyikan dari form publik).
 
 ### 5. Sistem Autentikasi & Hak Akses (Role-Based)
 - **Custom Authentication Guard**: Menggunakan guard `admin_hrd` berbasis tabel internal `admin_hrd_users`.
 - **Tanpa Registrasi Publik**: Hanya akun yang didaftarkan oleh Administrator yang dapat mengakses dashboard.
 - **Login Khusus Kantor**: Form login di `/admin/login` dengan label *"Email Kantor"* & *"Password"*, opsi remember-me, dan pesan kegagalan aman.
 - **2 Tingkatan Peran (Role)**:
-  - **Administrator (`admin`)**: Akses penuh ke seluruh dashboard, laporan, karyawan, absensi, ekspor, serta **Kelola Akun Staf Admin/HRD**.
-  - **HRD Team (`hrd`)**: Akses operasional ke dashboard, moderasi laporan, manajemen karyawan, absensi, dan ekspor data (dibatasi dari menu kelola akun).
+  - **Administrator (`admin`)**: Akses penuh ke seluruh dashboard, laporan, karyawan, ekspor, serta **Kelola Akun Staf Admin/HRD**.
+  - **HRD Team (`hrd`)**: Akses operasional ke dashboard, moderasi laporan, manajemen karyawan, dan ekspor data (dibatasi dari menu kelola akun).
 - **Keamanan Akun**:
   - Middleware aktifasi akun: Akun non-aktif ditolak saat login, dan sesi langsung diputus jika akun dinonaktifkan di tengah sesi.
   - Perlindungan *self-deactivation*: Pengguna tidak dapat menonaktifkan akun miliknya sendiri.
@@ -90,7 +86,6 @@ Aplikasi web internal kantor berbasis **Laravel 11** yang dirancang untuk memper
 ├── divisions                # Master data divisi kantor
 ├── employees                # Master data karyawan (relasi ke divisions)
 ├── daily_reports            # Header laporan, snapshot histori, dan form_data (JSON)
-├── employee_attendances     # Catatan kehadiran/pengecualian (Cuti, Sakit, Izin, Libur)
 └── admin_hrd_users          # Akun pengguna terotentikasi (role: admin / hrd)
 ```
 
@@ -159,7 +154,7 @@ Aplikasi web internal kantor berbasis **Laravel 11** yang dirancang untuk memper
 | Role | Email Kantor | Password Default | Hak Akses |
 | :--- | :--- | :--- | :--- |
 | **Administrator** | `admin@kantor.com` | `password` | Penuh + Kelola Akun Admin/HRD |
-| **HRD Team** | `hrd@kantor.com` | `password` | Monitoring, Laporan, Karyawan, Cuti |
+| **HRD Team** | `hrd@kantor.com` | `password` | Monitoring, Laporan, Karyawan, Ekspor |
 
 ---
 
@@ -176,7 +171,7 @@ Cakupan pengujian mencakup:
 - Proteksi pencegahan laporan ganda per karyawan per tanggal.
 - Integritas snapshot data pada laporan.
 - Autentikasi guard `admin_hrd` & hak akses berbasis role (`admin` vs `hrd`).
-- Perhitungan kepatuhan dashboard & pengecualian otomatis karyawan cuti/sakit.
+- Ringkasan metrik dashboard laporan & rekap per divisi.
 - Pembatalan, pemulihan, pengeditan, dan ekspor laporan ke format CSV.
 
 ---
@@ -204,3 +199,4 @@ vendor/bin/pint
 ## 📄 Lisensi
 
 Aplikasi ini bersifat internal dan berlisensi komersial/privat untuk kebutuhan operasional kantor.
+
