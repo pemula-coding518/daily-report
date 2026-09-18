@@ -29,16 +29,16 @@ Aplikasi web internal kantor berbasis **Laravel 11** yang dirancang untuk memper
 - **Akses Langsung**: Karyawan mengakses formulir laporan publik (`/`) tanpa perlu proses login.
 - **Pemilihan Tanggal Fleksibel**: Tanggal pelaporan dapat disesuaikan dengan kebutuhan operasional pekerjaan.
 - **Dropdown Reaktif**: Pilihan divisi memuat daftar nama karyawan aktif secara dinamis via asynchronous request.
-- **Formulir Spesifik Divisi**:
-  - **Teknisi**: Jenis pekerjaan, detail deskripsi per pekerjaan, status pengerjaan mandiri (*Selesai/Progres/Pending*), kendala, dan rencana besok.
-  - **Admin Sales**: Aktivitas pekerjaan hari ini dan rencana besok dengan detail khusus, metrik numerik (*customer dihubungi, quotation, closing*), dan kendala.
-  - **Admin Project**: Pemrosesan dokumen (*SOW, BAST, Report, Lainnya*) dengan rincian penjelasan, daftar project dinamis beserta progres persentase, kendala, dan rencana besok.
-  - **Admin Procurement**: Kategori pekerjaan (*Cari Barang, Cari Teknisi, PO*), input jumlah PO dan rincian vendor, barang diterima/dikirim, kendala, dan rencana besok.
-  - **System Informasi**: Pekerjaan hari ini, status pengerjaan, kendala, dan rencana besok.
-  - **Finance**: Pekerjaan hari ini, daftar detail invoice dinamis, jurnal pencatatan keuangan, rekap kas/bank, kendala, dan rencana besok.
+- **Formulir Spesifik Divisi (Dynamic Forms)**:
+  - **Teknisi**: Multi-select jenis pekerjaan (*Instalasi, Maintenance, Troubleshooting, Survey, Remote Support, Yang lain*), textarea rincian per pekerjaan, status pengerjaan independen (*Selesai / Progres / Pending*), kendala, dan rencana besok.
+  - **Admin Sales**: Pilihan pekerjaan hari ini & rencana besok (*Follow Up, Membuat Penawaran, Meeting, Yang lain*) dengan detail wajib per aktivitas yang dipilih, metrik numerik (*customer dihubungi, quotation dibuat, closing*), dan kendala.
+  - **Admin Project**: Pemrosesan dokumen (*SOW, BAST, Report, Yang lain*) dengan textarea rincian per dokumen, input jumlah project yang memunculkan daftar baris proyek dan progres persentase secara dinamis, kendala, dan rencana besok.
+  - **Admin Procurement**: Pilihan kategori pekerjaan (*Cari Barang, Cari Teknisi, PO*) dengan textarea rincian kondisional, input jumlah PO dan rincian vendor, catatan barang diterima/dikirim, kendala, dan rencana besok.
+  - **System Informasi**: Deskripsi pekerjaan hari ini, status pengerjaan, kendala teknis, dan rencana besok.
+  - **Finance**: Deskripsi aktivitas harian, daftar dinamis invoice yang dibuat (*count & detail items*), pencatatan jurnal harian, rekap kas/bank, kendala, dan rencana besok.
 - **Integritas Data & Snapshot**:
   - Validasi ketat `UNIQUE(employee_id, report_date)` guna mencegah pengiriman ganda pada tanggal yang sama.
-  - Snapshot nama karyawan, nama divisi, kode divisi, dan versi formulir disimpan bersama laporan agar riwayat historis tetap valid meskipun terjadi pembaruan data master.
+  - Penyimpanan `form_version: 2` dengan snapshot nama karyawan, nama divisi, dan kode divisi agar riwayat historis tetap konsisten meskipun master data diperbarui di kemudian hari.
 
 ### 2. Dashboard Monitoring Admin & HRD
 - **Filter Tanggal & Divisi**: Mengubah tanggal atau unit kerja secara langsung memutakhirkan seluruh data laporan yang ditampilkan.
