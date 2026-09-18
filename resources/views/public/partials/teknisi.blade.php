@@ -35,32 +35,30 @@
         });
     },
 
-    toggleType(t) {
-        const index = this.selectedTypes.indexOf(t);
-        if (index > -1) {
+    // selectedTypes dikelola x-model pada checkbox; sinkronkan workItems dari sini
+    syncWorkItems(t) {
+        if (this.selectedTypes.includes(t)) {
+            // Checked: pastikan item pekerjaan tersedia
+            if (!this.workItems.find(item => item.type === t)) {
+                this.workItems.push({
+                    type: t,
+                    custom_type: '',
+                    detail: '',
+                    status: 'selesai'
+                });
+            }
+        } else {
             // Unchecking
             const existingItem = this.workItems.find(item => item.type === t);
             if (existingItem && existingItem.detail && existingItem.detail.trim() !== '') {
                 if (!confirm(`Hapus pilihan pekerjaan '${this.typeLabels[t]}'? Rincian yang sudah ditulis akan hilang.`)) {
+                    // Batalkan penghapusan: centang kembali, data tetap ada
+                    this.selectedTypes.push(t);
                     return;
                 }
             }
-            this.selectedTypes.splice(index, 1);
             this.workItems = this.workItems.filter(item => item.type !== t);
-        } else {
-            // Checking
-            this.selectedTypes.push(t);
-            this.workItems.push({
-                type: t,
-                custom_type: '',
-                detail: '',
-                status: 'selesai'
-            });
         }
-    },
-
-    isTypeSelected(t) {
-        return this.selectedTypes.includes(t);
     }
 }">
     <div class="border-b border-slate-200 pb-3">
@@ -88,8 +86,9 @@
             @foreach ($jobOptions as $val => $label)
                 <label class="flex items-center gap-2.5 p-3.5 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-slate-50 cursor-pointer transition has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50/50">
                     <input type="checkbox" 
-                           :checked="isTypeSelected('{{ $val }}')"
-                           @click.prevent="toggleType('{{ $val }}')"
+                           value="{{ $val }}"
+                           x-model="selectedTypes"
+                           @change="syncWorkItems('{{ $val }}')"
                            class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
                     <span class="text-sm font-semibold text-slate-800">{{ $label }}</span>
                 </label>

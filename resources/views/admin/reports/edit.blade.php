@@ -123,23 +123,22 @@
                                     'remote_support': 'Remote Support',
                                     'lainnya': 'Yang lain'
                                 },
-                                toggleType(t) {
-                                    const index = this.selectedTypes.indexOf(t);
-                                    if (index > -1) {
-                                        this.selectedTypes.splice(index, 1);
-                                        this.workItems = this.workItems.filter(item => item.type !== t);
+                                // selectedTypes dikelola x-model pada checkbox; sinkronkan workItems dari sini
+                                syncWorkItems(t) {
+                                    if (this.selectedTypes.includes(t)) {
+                                        // Checked: pastikan item pekerjaan tersedia
+                                        if (!this.workItems.find(item => item.type === t)) {
+                                            this.workItems.push({
+                                                type: t,
+                                                custom_type: '',
+                                                detail: '',
+                                                status: 'selesai'
+                                            });
+                                        }
                                     } else {
-                                        this.selectedTypes.push(t);
-                                        this.workItems.push({
-                                            type: t,
-                                            custom_type: '',
-                                            detail: '',
-                                            status: 'selesai'
-                                        });
+                                        // Unchecking
+                                        this.workItems = this.workItems.filter(item => item.type !== t);
                                     }
-                                },
-                                isTypeSelected(t) {
-                                    return this.selectedTypes.includes(t);
                                 }
                             }">
                                 <div>
@@ -148,8 +147,9 @@
                                         @foreach(['instalasi' => 'Instalasi', 'maintenance' => 'Maintenance', 'troubleshooting' => 'Troubleshooting', 'survey' => 'Survey', 'remote_support' => 'Remote Support', 'lainnya' => 'Yang lain'] as $val => $label)
                                             <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 text-xs cursor-pointer hover:bg-slate-50">
                                                 <input type="checkbox" 
-                                                       :checked="isTypeSelected('{{ $val }}')"
-                                                       @click.prevent="toggleType('{{ $val }}')"
+                                                       value="{{ $val }}"
+                                                       x-model="selectedTypes"
+                                                       @change="syncWorkItems('{{ $val }}')"
                                                        class="rounded border-slate-300 text-indigo-600">
                                                 <span>{{ $label }}</span>
                                             </label>
