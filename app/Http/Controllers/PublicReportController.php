@@ -56,7 +56,7 @@ class PublicReportController extends Controller
             'employee_name_snapshot' => $employee->name,
             'division_name_snapshot' => $division->name,
             'division_code_snapshot' => $division->code,
-            'form_version' => 1,
+            'form_version' => 2,
             'status' => 'active',
             'form_data' => $validated['form_data'],
             'submitted_at' => now(),

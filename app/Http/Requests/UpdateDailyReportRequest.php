@@ -40,58 +40,97 @@ class UpdateDailyReportRequest extends FormRequest
             'form_data' => ['required', 'array'],
         ];
 
-        // Specific division rules
-        if ($code === 'teknisi') {
-            $rules['form_data.pekerjaan_hari_ini'] = ['required', 'array', 'min:1'];
-            $rules['form_data.status_pekerjaan'] = ['required', 'in:selesai,progres,pending'];
+        if ($code === 'admin_procurement') {
+            $rules['form_data.work_categories'] = ['required', 'array', 'min:1'];
+            $rules['form_data.work_categories.*'] = ['string', 'in:cari_barang,cari_teknisi,po'];
+            $rules['form_data.barang_diterima_dikirim'] = ['nullable', 'string'];
             $rules['form_data.kendala'] = ['nullable', 'string'];
             $rules['form_data.rencana_besok'] = ['nullable', 'string'];
 
-            if (in_array('lainnya', (array) $this->input('form_data.pekerjaan_hari_ini', []))) {
-                $rules['form_data.pekerjaan_lainnya'] = ['required', 'string', 'max:500'];
+            $categories = (array) $this->input('form_data.work_categories', []);
+            if (in_array('cari_barang', $categories)) {
+                $rules['form_data.detail_cari_barang'] = ['required', 'string'];
             }
+            if (in_array('cari_teknisi', $categories)) {
+                $rules['form_data.detail_cari_teknisi'] = ['required', 'string'];
+            }
+            if (in_array('po', $categories)) {
+                $rules['form_data.jumlah_po'] = ['required', 'integer', 'min:1'];
+                $rules['form_data.detail_po_vendor'] = ['required', 'string'];
+            }
+        } elseif ($code === 'admin_project') {
+            $rules['form_data.documents_processed'] = ['required', 'array', 'min:1'];
+            $rules['form_data.documents_processed.*'] = ['string', 'in:sow,bast,report,lainnya'];
+            $rules['form_data.document_details'] = ['required', 'array'];
+
+            $docs = (array) $this->input('form_data.documents_processed', []);
+            foreach ($docs as $doc) {
+                if (in_array($doc, ['sow', 'bast', 'report', 'lainnya'])) {
+                    $rules["form_data.document_details.{$doc}"] = ['required', 'string'];
+                }
+            }
+
+            $projectCount = (int) $this->input('form_data.project_count', 0);
+            $rules['form_data.project_count'] = ['required', 'integer', 'min:0'];
+            $rules['form_data.projects'] = ['array', "size:{$projectCount}"];
+            if ($projectCount > 0) {
+                $rules['form_data.projects.*.project_description'] = ['required', 'string'];
+                $rules['form_data.projects.*.progress_percent'] = ['required', 'integer', 'min:0', 'max:100'];
+            }
+
+            $rules['form_data.kendala'] = ['nullable', 'string'];
+            $rules['form_data.rencana_besok'] = ['nullable', 'string'];
         } elseif ($code === 'admin_sales') {
-            $rules['form_data.pekerjaan_hari_ini'] = ['required', 'array', 'min:1'];
-            $rules['form_data.rencana_besok'] = ['required', 'array', 'min:1'];
+            $rules['form_data.today_activities'] = ['required', 'array', 'min:1'];
+            $rules['form_data.today_activities.*'] = ['string', 'in:follow_up,membuat_penawaran,meeting,lainnya'];
+            $rules['form_data.today_activity_details'] = ['required', 'array'];
+
+            $todayActs = (array) $this->input('form_data.today_activities', []);
+            foreach ($todayActs as $act) {
+                if (in_array($act, ['follow_up', 'membuat_penawaran', 'meeting', 'lainnya'])) {
+                    $rules["form_data.today_activity_details.{$act}"] = ['required', 'string'];
+                }
+            }
+
+            $rules['form_data.tomorrow_activities'] = ['required', 'array', 'min:1'];
+            $rules['form_data.tomorrow_activities.*'] = ['string', 'in:follow_up,membuat_penawaran,meeting,lainnya'];
+            $rules['form_data.tomorrow_activity_details'] = ['required', 'array'];
+
+            $tomorrowActs = (array) $this->input('form_data.tomorrow_activities', []);
+            foreach ($tomorrowActs as $act) {
+                if (in_array($act, ['follow_up', 'membuat_penawaran', 'meeting', 'lainnya'])) {
+                    $rules["form_data.tomorrow_activity_details.{$act}"] = ['required', 'string'];
+                }
+            }
+
             $rules['form_data.jumlah_customer'] = ['required', 'integer', 'min:0'];
             $rules['form_data.jumlah_quotation'] = ['required', 'integer', 'min:0'];
             $rules['form_data.jumlah_closing'] = ['required', 'integer', 'min:0'];
             $rules['form_data.kendala'] = ['nullable', 'string'];
-
-            if (in_array('lainnya', (array) $this->input('form_data.pekerjaan_hari_ini', []))) {
-                $rules['form_data.pekerjaan_hari_ini_lainnya'] = ['required', 'string', 'max:500'];
-            }
-            if (in_array('lainnya', (array) $this->input('form_data.rencana_besok', []))) {
-                $rules['form_data.rencana_besok_lainnya'] = ['required', 'string', 'max:500'];
-            }
-        } elseif ($code === 'admin_project') {
+        } elseif ($code === 'finance') {
             $rules['form_data.pekerjaan_hari_ini'] = ['required', 'string'];
-            $rules['form_data.nama_project'] = ['required', 'string'];
-            $rules['form_data.progres_persen'] = ['required', 'integer', 'min:0', 'max:100'];
-            $rules['form_data.dokumen_diproses'] = ['required', 'array', 'min:1'];
+
+            $invoiceCount = (int) $this->input('form_data.invoice_count', 0);
+            $rules['form_data.invoice_count'] = ['required', 'integer', 'min:0'];
+            $rules['form_data.invoice_details'] = ['array', "size:{$invoiceCount}"];
+            if ($invoiceCount > 0) {
+                $rules['form_data.invoice_details.*.description'] = ['required', 'string'];
+            }
+
+            $rules['form_data.jurnal'] = ['required', 'string'];
+            $rules['form_data.rekap_kas_bank'] = ['nullable', 'string'];
             $rules['form_data.kendala'] = ['nullable', 'string'];
             $rules['form_data.rencana_besok'] = ['nullable', 'string'];
-
-            if (in_array('lainnya', (array) $this->input('form_data.dokumen_diproses', []))) {
-                $rules['form_data.dokumen_lainnya'] = ['required', 'string', 'max:500'];
-            }
-        } elseif ($code === 'admin_procurement') {
-            $rules['form_data.pekerjaan_hari_ini'] = ['required', 'string'];
-            $rules['form_data.jumlah_po'] = ['required', 'integer', 'min:0'];
-            $rules['form_data.vendor_dihubungi'] = ['nullable', 'string'];
-            $rules['form_data.barang_diterima_dikirim'] = ['nullable', 'string'];
+        } elseif ($code === 'teknisi') {
+            $rules['form_data.work_items'] = ['required', 'array', 'min:1'];
+            $rules['form_data.work_items.*.type'] = ['required', 'string', 'in:instalasi,maintenance,troubleshooting,survey,remote_support,lainnya'];
+            $rules['form_data.work_items.*.detail'] = ['required', 'string'];
+            $rules['form_data.work_items.*.status'] = ['required', 'string', 'in:selesai,progres,pending'];
             $rules['form_data.kendala'] = ['nullable', 'string'];
             $rules['form_data.rencana_besok'] = ['nullable', 'string'];
         } elseif ($code === 'system_informasi') {
             $rules['form_data.pekerjaan_hari_ini'] = ['required', 'string'];
             $rules['form_data.status_pengerjaan'] = ['required', 'string'];
-            $rules['form_data.kendala'] = ['nullable', 'string'];
-            $rules['form_data.rencana_besok'] = ['nullable', 'string'];
-        } elseif ($code === 'finance') {
-            $rules['form_data.pekerjaan_hari_ini'] = ['required', 'string'];
-            $rules['form_data.invoice_dibuat'] = ['nullable', 'string'];
-            $rules['form_data.pembayaran'] = ['nullable', 'string'];
-            $rules['form_data.rekap_kas_bank'] = ['nullable', 'string'];
             $rules['form_data.kendala'] = ['nullable', 'string'];
             $rules['form_data.rencana_besok'] = ['nullable', 'string'];
         }
@@ -121,12 +160,24 @@ class UpdateDailyReportRequest extends FormRequest
                 }
             }
 
-            // Mutual exclusivity for Admin Project: "tidak_ada"
             $division = Division::find($divisionId);
-            if (strtolower((string) $division?->code) === 'admin_project') {
-                $docs = (array) $this->input('form_data.dokumen_diproses', []);
-                if (in_array('tidak_ada', $docs) && count($docs) > 1) {
-                    $validator->errors()->add('form_data.dokumen_diproses', 'Pilihan "Tidak ada" tidak boleh dipilih bersamaan dengan dokumen lain.');
+            $code = strtolower((string) $division?->code);
+
+            // Additional custom validations for Teknisi
+            if ($code === 'teknisi') {
+                $workItems = (array) $this->input('form_data.work_items', []);
+                $typesSeen = [];
+                foreach ($workItems as $index => $item) {
+                    if (is_array($item)) {
+                        $type = $item['type'] ?? '';
+                        if ($type === 'lainnya' && empty(trim((string) ($item['custom_type'] ?? '')))) {
+                            $validator->errors()->add("form_data.work_items.{$index}.custom_type", 'Nama/jenis pekerjaan lain wajib diisi.');
+                        }
+                        if (in_array($type, $typesSeen)) {
+                            $validator->errors()->add("form_data.work_items.{$index}.type", 'Tidak boleh ada jenis pekerjaan yang duplikat.');
+                        }
+                        $typesSeen[] = $type;
+                    }
                 }
             }
         });
@@ -145,21 +196,32 @@ class UpdateDailyReportRequest extends FormRequest
             'email' => 'Email',
             'report_date' => 'Tanggal Pekerjaan',
             'status' => 'Status Laporan',
-            'form_data.pekerjaan_hari_ini' => 'Pekerjaan Hari Ini',
-            'form_data.pekerjaan_lainnya' => 'Penjelasan Pekerjaan Lainnya',
-            'form_data.pekerjaan_hari_ini_lainnya' => 'Penjelasan Pekerjaan Hari Ini Lainnya',
-            'form_data.rencana_besok' => 'Rencana Besok',
-            'form_data.rencana_besok_lainnya' => 'Penjelasan Rencana Besok Lainnya',
-            'form_data.status_pekerjaan' => 'Status Pekerjaan',
-            'form_data.status_pengerjaan' => 'Status Pengerjaan',
+            'form_data.work_categories' => 'Pilihan Pekerjaan',
+            'form_data.detail_cari_barang' => 'Detail Pencarian Barang',
+            'form_data.detail_cari_teknisi' => 'Detail Pencarian Teknisi',
+            'form_data.jumlah_po' => 'Jumlah PO Dibuat',
+            'form_data.detail_po_vendor' => 'Detail PO dan Vendor',
+            'form_data.documents_processed' => 'Dokumen yang Diproses',
+            'form_data.project_count' => 'Jumlah Project',
+            'form_data.projects' => 'Daftar Project',
+            'form_data.projects.*.project_description' => 'Nama / Penjelasan Project',
+            'form_data.projects.*.progress_percent' => 'Progres Project (%)',
+            'form_data.today_activities' => 'Pekerjaan Hari Ini',
+            'form_data.tomorrow_activities' => 'Rencana Pekerjaan Besok',
             'form_data.jumlah_customer' => 'Jumlah Customer',
             'form_data.jumlah_quotation' => 'Jumlah Quotation',
             'form_data.jumlah_closing' => 'Jumlah Closing',
-            'form_data.nama_project' => 'Nama Project',
-            'form_data.progres_persen' => 'Progres Project',
-            'form_data.dokumen_diproses' => 'Dokumen yang Diproses',
-            'form_data.dokumen_lainnya' => 'Penjelasan Dokumen Lainnya',
-            'form_data.jumlah_po' => 'Jumlah PO Dibuat',
+            'form_data.invoice_count' => 'Jumlah Invoice',
+            'form_data.invoice_details' => 'Daftar Detail Invoice',
+            'form_data.invoice_details.*.description' => 'Detail Invoice',
+            'form_data.jurnal' => 'Jurnal',
+            'form_data.work_items' => 'Kelompok Pekerjaan',
+            'form_data.work_items.*.detail' => 'Detail Pekerjaan',
+            'form_data.work_items.*.status' => 'Status Pekerjaan',
+            'form_data.pekerjaan_hari_ini' => 'Pekerjaan Hari Ini',
+            'form_data.status_pengerjaan' => 'Status Pengerjaan',
+            'form_data.kendala' => 'Kendala',
+            'form_data.rencana_besok' => 'Rencana Besok',
         ];
     }
 }

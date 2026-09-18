@@ -1,107 +1,185 @@
-<div class="space-y-6">
+@php
+    $oldDocs = (array) old('form_data.documents_processed', []);
+    $oldDocDetails = (array) old('form_data.document_details', []);
+    $oldProjects = (array) old('form_data.projects', []);
+    $oldProjectCount = (int) old('form_data.project_count', count($oldProjects));
+@endphp
+
+<div class="space-y-6" x-data="{
+    selectedDocs: {{ json_encode($oldDocs) }},
+    docDetails: {{ json_encode($oldDocDetails) }},
+    hasDoc(doc) { return this.selectedDocs.includes(doc); },
+    
+    projectCount: {{ $oldProjectCount }},
+    projects: {{ json_encode($oldProjects) }},
+
+    init() {
+        if (this.projects.length < this.projectCount) {
+            while (this.projects.length < this.projectCount) {
+                this.projects.push({ project_description: '', progress_percent: 0 });
+            }
+        }
+    },
+
+    updateProjectCount(val) {
+        let count = parseInt(val);
+        if (isNaN(count) || count < 0) count = 0;
+
+        if (count < this.projects.length) {
+            let removedItems = this.projects.slice(count);
+            let hasFilledData = removedItems.some(p => (p.project_description && p.project_description.trim() !== '') || (p.progress_percent && parseInt(p.progress_percent) > 0));
+            if (hasFilledData) {
+                if (!confirm('Jumlah project dikurangi. Data pada baris yang terhapus akan hilang. Lanjutkan?')) {
+                    this.projectCount = this.projects.length;
+                    return;
+                }
+            }
+            this.projects = this.projects.slice(0, count);
+        } else {
+            while (this.projects.length < count) {
+                this.projects.push({ project_description: '', progress_percent: 0 });
+            }
+        }
+        this.projectCount = count;
+    }
+}">
     <div class="border-b border-slate-200 pb-3">
         <h3 class="text-base font-semibold text-slate-800">Form Laporan: Admin Project</h3>
-        <p class="text-xs text-slate-500">Lengkapi progres pelaksanaan project dan pemrosesan dokumen.</p>
+        <p class="text-xs text-slate-500">Lengkapi dokumen yang diproses dan progres pengerjaan project hari ini.</p>
     </div>
 
-    <!-- Pekerjaan yang Dikerjakan Hari Ini -->
+    <!-- 1. Dokumen yang Diproses (Checkboxes) -->
     <div>
-        <label class="block text-sm font-semibold text-slate-700 mb-1">
-            Pekerjaan yang Dikerjakan Hari Ini <span class="text-rose-500">*</span>
-        </label>
-        <textarea name="form_data[pekerjaan_hari_ini]" rows="3" placeholder="Tuliskan pekerjaan project yang Anda kerjakan..."
-                  class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500">{{ old('form_data.pekerjaan_hari_ini') }}</textarea>
-        @error('form_data.pekerjaan_hari_ini')
-            <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
-        @enderror
-    </div>
-
-    <!-- Nama Project & Progres Project -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="sm:col-span-2">
-            <label class="block text-sm font-semibold text-slate-700 mb-1">
-                Nama Project yang Dikerjakan <span class="text-rose-500">*</span>
-            </label>
-            <input type="text" name="form_data[nama_project]" 
-                   value="{{ old('form_data.nama_project') }}"
-                   placeholder="Contoh: Implementasi Jaringan Kantor Cabang Surabaya"
-                   class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500">
-            @error('form_data.nama_project')
-                <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
-            @enderror
-        </div>
-
-        <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-1">
-                Progres Project (%) <span class="text-rose-500">*</span>
-            </label>
-            <div class="relative">
-                <input type="number" min="0" max="100" name="form_data[progres_persen]" 
-                       value="{{ old('form_data.progres_persen', 0) }}"
-                       class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 pr-8">
-                <span class="absolute right-3 top-2.5 text-sm text-slate-400 font-semibold">%</span>
-            </div>
-            @error('form_data.progres_persen')
-                <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
-            @enderror
-        </div>
-    </div>
-
-    <!-- Dokumen yang Diproses (Mutually Exclusive for 'tidak_ada') -->
-    <div x-data="{
-        selectedDocs: {{ json_encode((array) old('form_data.dokumen_diproses', [])) }},
-        toggleDoc(val) {
-            if (val === 'tidak_ada') {
-                if (this.selectedDocs.includes('tidak_ada')) {
-                    this.selectedDocs = ['tidak_ada'];
-                }
-            } else {
-                this.selectedDocs = this.selectedDocs.filter(item => item !== 'tidak_ada');
-            }
-        },
-        hasOther() { return this.selectedDocs.includes('lainnya'); }
-    }">
         <label class="block text-sm font-semibold text-slate-700 mb-2">
             Dokumen yang Diproses <span class="text-rose-500">*</span> <span class="text-xs font-normal text-slate-400">(Dapat memilih lebih dari satu)</span>
         </label>
-        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             @php
                 $docOptions = [
-                    'po' => 'PO',
+                    'sow' => 'SOW',
                     'bast' => 'BAST',
-                    'invoice' => 'Invoice',
-                    'tidak_ada' => 'Tidak ada',
+                    'report' => 'Report',
                     'lainnya' => 'Yang lain',
                 ];
             @endphp
 
             @foreach ($docOptions as $val => $label)
-                <label class="flex items-center gap-2 p-3 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-slate-50 cursor-pointer transition">
-                    <input type="checkbox" name="form_data[dokumen_diproses][]" value="{{ $val }}"
+                <label class="flex items-center gap-2.5 p-3.5 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-slate-50 cursor-pointer transition has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50/50">
+                    <input type="checkbox" name="form_data[documents_processed][]" value="{{ $val }}"
                            x-model="selectedDocs"
-                           @change="toggleDoc('{{ $val }}')"
                            class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
-                    <span class="text-sm text-slate-700 font-medium">{{ $label }}</span>
+                    <span class="text-sm font-semibold text-slate-800">{{ $label }}</span>
                 </label>
             @endforeach
         </div>
-        @error('form_data.dokumen_diproses')
+        @error('form_data.documents_processed')
             <p class="mt-1.5 text-xs text-rose-500">{{ $message }}</p>
         @enderror
+    </div>
 
-        <!-- Input Jika Memilih 'Yang lain' -->
-        <div x-show="hasOther()" x-cloak class="mt-3">
-            <label class="block text-xs font-semibold text-slate-700 mb-1">
-                Jelaskan Dokumen Lainnya <span class="text-rose-500">*</span>
+    <!-- Textarea untuk setiap dokumen yang dipilih -->
+    <div x-show="selectedDocs.length > 0" x-cloak class="space-y-4">
+        <!-- SOW Detail -->
+        <div x-show="hasDoc('sow')" class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+            <label class="block text-sm font-semibold text-slate-700">
+                Detail SOW <span class="text-rose-500">*</span>
             </label>
-            <input type="text" name="form_data[dokumen_lainnya]" 
-                   value="{{ old('form_data.dokumen_lainnya') }}"
-                   placeholder="Contoh: Surat Jalan & Berita Acara Rekonsiliasi"
-                   class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500">
-            @error('form_data.dokumen_lainnya')
+            <textarea name="form_data[document_details][sow]" rows="2" placeholder="Tuliskan rincian SOW yang diproses..."
+                      class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white">{{ old('form_data.document_details.sow') }}</textarea>
+            @error('form_data.document_details.sow')
                 <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
             @enderror
         </div>
+
+        <!-- BAST Detail -->
+        <div x-show="hasDoc('bast')" class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+            <label class="block text-sm font-semibold text-slate-700">
+                Detail BAST <span class="text-rose-500">*</span>
+            </label>
+            <textarea name="form_data[document_details][bast]" rows="2" placeholder="Tuliskan rincian BAST yang diproses..."
+                      class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white">{{ old('form_data.document_details.bast') }}</textarea>
+            @error('form_data.document_details.bast')
+                <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <!-- Report Detail -->
+        <div x-show="hasDoc('report')" class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+            <label class="block text-sm font-semibold text-slate-700">
+                Detail Report <span class="text-rose-500">*</span>
+            </label>
+            <textarea name="form_data[document_details][report]" rows="2" placeholder="Tuliskan rincian Report yang diproses..."
+                      class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white">{{ old('form_data.document_details.report') }}</textarea>
+            @error('form_data.document_details.report')
+                <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <!-- Dokumen Lainnya Detail -->
+        <div x-show="hasDoc('lainnya')" class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+            <label class="block text-sm font-semibold text-slate-700">
+                Detail Dokumen Lain <span class="text-rose-500">*</span>
+            </label>
+            <textarea name="form_data[document_details][lainnya]" rows="2" placeholder="Tuliskan nama dokumen dan rincian dokumen lain yang diproses..."
+                      class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white">{{ old('form_data.document_details.lainnya') }}</textarea>
+            @error('form_data.document_details.lainnya')
+                <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
+            @enderror
+        </div>
+    </div>
+
+    <!-- 2. Daftar Project dan Progres -->
+    <div class="pt-2 border-t border-slate-200/60 space-y-4">
+        <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">
+                Jumlah Project yang Dikerjakan <span class="text-rose-500">*</span>
+            </label>
+            <input type="number" min="0" name="form_data[project_count]" 
+                   x-model="projectCount"
+                   @change="updateProjectCount($event.target.value)"
+                   class="w-full sm:w-48 text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500">
+            <p class="mt-1 text-xs text-slate-400">Masukkan 0 jika hari ini tidak ada penanganan project.</p>
+            @error('form_data.project_count')
+                <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <!-- Dynamic Projects List -->
+        <template x-for="(proj, index) in projects" :key="index">
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-indigo-600" x-text="`Project #${index + 1}`"></span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">
+                            Nama atau Penjelasan Project <span class="text-rose-500">*</span>
+                        </label>
+                        <input type="text" :name="`form_data[projects][${index}][project_description]`" 
+                               x-model="proj.project_description"
+                               placeholder="Contoh: Implementasi jaringan kantor cabang Surabaya"
+                               class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">
+                            Progres Project (%) <span class="text-rose-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <input type="number" min="0" max="100" :name="`form_data[projects][${index}][progress_percent]`" 
+                                   x-model="proj.progress_percent"
+                                   placeholder="0 - 100"
+                                   class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white pr-8">
+                            <span class="absolute right-3 top-2.5 text-sm text-slate-400 font-semibold">%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+        @error('form_data.projects')
+            <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
+        @enderror
     </div>
 
     <!-- Kendala -->
@@ -128,3 +206,4 @@
         @enderror
     </div>
 </div>
+

@@ -93,42 +93,103 @@
                         @php
                             $data = (array) $report->form_data;
                             $code = $report->division_code_snapshot;
+                            $v = (int) ($report->form_version ?? 1);
                         @endphp
 
                         @if ($code === 'teknisi')
+                            @php
+                                $oldWorkItems = (array) old('form_data.work_items', $data['work_items'] ?? []);
+                                if (empty($oldWorkItems) && !empty($data['pekerjaan_hari_ini'])) {
+                                    // Migration from v1 on the fly for editing
+                                    foreach ((array)$data['pekerjaan_hari_ini'] as $job) {
+                                        $oldWorkItems[] = [
+                                            'type' => $job,
+                                            'custom_type' => $job === 'lainnya' ? ($data['pekerjaan_lainnya'] ?? '') : '',
+                                            'detail' => $job === 'lainnya' ? ($data['pekerjaan_lainnya'] ?? '') : 'Pekerjaan ' . $job,
+                                            'status' => $data['status_pekerjaan'] ?? 'selesai',
+                                        ];
+                                    }
+                                }
+                                $defaultSelected = array_map(fn($item) => $item['type'] ?? '', $oldWorkItems);
+                            @endphp
                             <div class="space-y-4 text-sm" x-data="{
-                                selectedJobs: {{ json_encode((array) old('form_data.pekerjaan_hari_ini', $data['pekerjaan_hari_ini'] ?? [])) }},
-                                hasOther() { return this.selectedJobs.includes('lainnya'); }
+                                selectedTypes: {{ json_encode($defaultSelected) }},
+                                workItems: {{ json_encode($oldWorkItems) }},
+                                typeLabels: {
+                                    'instalasi': 'Instalasi',
+                                    'maintenance': 'Maintenance',
+                                    'troubleshooting': 'Troubleshooting',
+                                    'survey': 'Survey',
+                                    'remote_support': 'Remote Support',
+                                    'lainnya': 'Yang lain'
+                                },
+                                toggleType(t) {
+                                    const index = this.selectedTypes.indexOf(t);
+                                    if (index > -1) {
+                                        this.selectedTypes.splice(index, 1);
+                                        this.workItems = this.workItems.filter(item => item.type !== t);
+                                    } else {
+                                        this.selectedTypes.push(t);
+                                        this.workItems.push({
+                                            type: t,
+                                            custom_type: '',
+                                            detail: '',
+                                            status: 'selesai'
+                                        });
+                                    }
+                                },
+                                isTypeSelected(t) {
+                                    return this.selectedTypes.includes(t);
+                                }
                             }">
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-700 mb-2">Jenis Pekerjaan:</label>
                                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                         @foreach(['instalasi' => 'Instalasi', 'maintenance' => 'Maintenance', 'troubleshooting' => 'Troubleshooting', 'survey' => 'Survey', 'remote_support' => 'Remote Support', 'lainnya' => 'Yang lain'] as $val => $label)
-                                            <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 text-xs cursor-pointer">
-                                                <input type="checkbox" name="form_data[pekerjaan_hari_ini][]" value="{{ $val }}"
-                                                       x-model="selectedJobs"
+                                            <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 text-xs cursor-pointer hover:bg-slate-50">
+                                                <input type="checkbox" 
+                                                       :checked="isTypeSelected('{{ $val }}')"
+                                                       @click.prevent="toggleType('{{ $val }}')"
                                                        class="rounded border-slate-300 text-indigo-600">
                                                 <span>{{ $label }}</span>
                                             </label>
                                         @endforeach
                                     </div>
-                                    <div x-show="hasOther()" class="mt-2">
-                                        <input type="text" name="form_data[pekerjaan_lainnya]" 
-                                               value="{{ old('form_data.pekerjaan_lainnya', $data['pekerjaan_lainnya'] ?? '') }}"
-                                               placeholder="Penjelasan pekerjaan lainnya..."
-                                               class="w-full text-xs rounded-xl border-slate-300">
-                                    </div>
                                 </div>
 
-                                <div>
-                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Status Pekerjaan:</label>
-                                    <select name="form_data[status_pekerjaan]" class="w-full text-xs rounded-xl border-slate-300">
-                                        @foreach(['selesai' => 'Selesai', 'progres' => 'Progres', 'pending' => 'Pending'] as $val => $label)
-                                            <option value="{{ $val }}" {{ old('form_data.status_pekerjaan', $data['status_pekerjaan'] ?? '') === $val ? 'selected' : '' }}>
-                                                {{ $label }}
-                                            </option>
-                                        @endforeach
-                                    </select>
+                                <div class="space-y-3 pt-2">
+                                    <template x-for="(item, index) in workItems" :key="item.type">
+                                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                                            <div class="flex items-center justify-between">
+                                                <span class="font-bold text-xs text-indigo-700 uppercase" x-text="typeLabels[item.type] || item.type"></span>
+                                                <input type="hidden" :name="`form_data[work_items][${index}][type]`" :value="item.type">
+                                            </div>
+
+                                            <div x-show="item.type === 'lainnya'">
+                                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama / Jenis Pekerjaan Lain *</label>
+                                                <input type="text" :name="`form_data[work_items][${index}][custom_type]`" 
+                                                       x-model="item.custom_type"
+                                                       class="w-full text-xs rounded-xl border-slate-300">
+                                            </div>
+
+                                            <div>
+                                                <label class="block text-xs font-semibold text-slate-700 mb-1">Detail Pekerjaan *</label>
+                                                <textarea :name="`form_data[work_items][${index}][detail]`" 
+                                                          x-model="item.detail"
+                                                          rows="2"
+                                                          class="w-full text-xs rounded-xl border-slate-300"></textarea>
+                                            </div>
+
+                                            <div>
+                                                <label class="block text-xs font-semibold text-slate-700 mb-1">Status Pekerjaan *</label>
+                                                <select :name="`form_data[work_items][${index}][status]`" x-model="item.status" class="w-full text-xs rounded-xl border-slate-300">
+                                                    <option value="selesai">Selesai</option>
+                                                    <option value="progres">Progres</option>
+                                                    <option value="pending">Pending</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </template>
                                 </div>
 
                                 <div>
@@ -143,39 +204,67 @@
                             </div>
 
                         @elseif ($code === 'admin_sales')
+                            @php
+                                $oldTodayActs = (array) old('form_data.today_activities', $data['today_activities'] ?? $data['pekerjaan_hari_ini'] ?? []);
+                                $oldTodayDetails = (array) old('form_data.today_activity_details', $data['today_activity_details'] ?? []);
+                                $oldTomorrowActs = (array) old('form_data.tomorrow_activities', $data['tomorrow_activities'] ?? $data['rencana_besok'] ?? []);
+                                $oldTomorrowDetails = (array) old('form_data.tomorrow_activity_details', $data['tomorrow_activity_details'] ?? []);
+                            @endphp
                             <div class="space-y-4 text-sm" x-data="{
-                                selectedJobs: {{ json_encode((array) old('form_data.pekerjaan_hari_ini', $data['pekerjaan_hari_ini'] ?? [])) }},
-                                selectedTomorrow: {{ json_encode((array) old('form_data.rencana_besok', $data['rencana_besok'] ?? [])) }},
-                                hasOther() { return this.selectedJobs.includes('lainnya'); },
-                                hasOtherTomorrow() { return this.selectedTomorrow.includes('lainnya'); }
+                                todayActivities: {{ json_encode($oldTodayActs) }},
+                                tomorrowActivities: {{ json_encode($oldTomorrowActs) }},
+                                hasToday(act) { return this.todayActivities.includes(act); },
+                                hasTomorrow(act) { return this.tomorrowActivities.includes(act); }
                             }">
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-700 mb-2">Pekerjaan Hari Ini:</label>
-                                    <div class="grid grid-cols-3 gap-2">
-                                        @foreach(['follow_up' => 'Follow Up', 'membuat_penawaran' => 'Membuat Penawaran', 'lainnya' => 'Yang lain'] as $val => $label)
+                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                        @foreach(['follow_up' => 'Follow Up', 'membuat_penawaran' => 'Membuat Penawaran', 'meeting' => 'Meeting', 'lainnya' => 'Yang lain'] as $val => $label)
                                             <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 text-xs cursor-pointer">
-                                                <input type="checkbox" name="form_data[pekerjaan_hari_ini][]" value="{{ $val }}" x-model="selectedJobs" class="rounded border-slate-300 text-indigo-600">
+                                                <input type="checkbox" name="form_data[today_activities][]" value="{{ $val }}" x-model="todayActivities" class="rounded border-slate-300 text-indigo-600">
                                                 <span>{{ $label }}</span>
                                             </label>
                                         @endforeach
                                     </div>
-                                    <div x-show="hasOther()" class="mt-2">
-                                        <input type="text" name="form_data[pekerjaan_hari_ini_lainnya]" value="{{ old('form_data.pekerjaan_hari_ini_lainnya', $data['pekerjaan_hari_ini_lainnya'] ?? '') }}" class="w-full text-xs rounded-xl border-slate-300" placeholder="Pekerjaan lainnya...">
+                                    <div class="space-y-2 mt-2">
+                                        <div x-show="hasToday('follow_up')">
+                                            <textarea name="form_data[today_activity_details][follow_up]" placeholder="Detail Follow Up..." class="w-full text-xs rounded-xl border-slate-300" rows="2">{{ old('form_data.today_activity_details.follow_up', $oldTodayDetails['follow_up'] ?? '') }}</textarea>
+                                        </div>
+                                        <div x-show="hasToday('membuat_penawaran')">
+                                            <textarea name="form_data[today_activity_details][membuat_penawaran]" placeholder="Detail Penawaran..." class="w-full text-xs rounded-xl border-slate-300" rows="2">{{ old('form_data.today_activity_details.membuat_penawaran', $oldTodayDetails['membuat_penawaran'] ?? '') }}</textarea>
+                                        </div>
+                                        <div x-show="hasToday('meeting')">
+                                            <textarea name="form_data[today_activity_details][meeting]" placeholder="Detail Meeting..." class="w-full text-xs rounded-xl border-slate-300" rows="2">{{ old('form_data.today_activity_details.meeting', $oldTodayDetails['meeting'] ?? '') }}</textarea>
+                                        </div>
+                                        <div x-show="hasToday('lainnya')">
+                                            <textarea name="form_data[today_activity_details][lainnya]" placeholder="Detail Pekerjaan Lain..." class="w-full text-xs rounded-xl border-slate-300" rows="2">{{ old('form_data.today_activity_details.lainnya', $oldTodayDetails['lainnya'] ?? ($data['pekerjaan_hari_ini_lainnya'] ?? '')) }}</textarea>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-700 mb-2">Rencana Besok:</label>
-                                    <div class="grid grid-cols-3 gap-2">
-                                        @foreach(['follow_up' => 'Follow Up', 'membuat_penawaran' => 'Membuat Penawaran', 'lainnya' => 'Yang lain'] as $val => $label)
+                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                        @foreach(['follow_up' => 'Follow Up', 'membuat_penawaran' => 'Membuat Penawaran', 'meeting' => 'Meeting', 'lainnya' => 'Yang lain'] as $val => $label)
                                             <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 text-xs cursor-pointer">
-                                                <input type="checkbox" name="form_data[rencana_besok][]" value="{{ $val }}" x-model="selectedTomorrow" class="rounded border-slate-300 text-indigo-600">
+                                                <input type="checkbox" name="form_data[tomorrow_activities][]" value="{{ $val }}" x-model="tomorrowActivities" class="rounded border-slate-300 text-indigo-600">
                                                 <span>{{ $label }}</span>
                                             </label>
                                         @endforeach
                                     </div>
-                                    <div x-show="hasOtherTomorrow()" class="mt-2">
-                                        <input type="text" name="form_data[rencana_besok_lainnya]" value="{{ old('form_data.rencana_besok_lainnya', $data['rencana_besok_lainnya'] ?? '') }}" class="w-full text-xs rounded-xl border-slate-300" placeholder="Rencana lainnya...">
+                                    <div class="space-y-2 mt-2">
+                                        <div x-show="hasTomorrow('follow_up')">
+                                            <textarea name="form_data[tomorrow_activity_details][follow_up]" placeholder="Detail Rencana Follow Up..." class="w-full text-xs rounded-xl border-slate-300" rows="2">{{ old('form_data.tomorrow_activity_details.follow_up', $oldTomorrowDetails['follow_up'] ?? '') }}</textarea>
+                                        </div>
+                                        <div x-show="hasTomorrow('membuat_penawaran')">
+                                            <textarea name="form_data[tomorrow_activity_details][membuat_penawaran]" placeholder="Detail Rencana Penawaran..." class="w-full text-xs rounded-xl border-slate-300" rows="2">{{ old('form_data.tomorrow_activity_details.membuat_penawaran', $oldTomorrowDetails['membuat_penawaran'] ?? '') }}</textarea>
+                                        </div>
+                                        <div x-show="hasTomorrow('meeting')">
+                                            <textarea name="form_data[tomorrow_activity_details][meeting]" placeholder="Detail Rencana Meeting..." class="w-full text-xs rounded-xl border-slate-300" rows="2">{{ old('form_data.tomorrow_activity_details.meeting', $oldTomorrowDetails['meeting'] ?? '') }}</textarea>
+                                        </div>
+                                        <div x-show="hasTomorrow('lainnya')">
+                                            <textarea name="form_data[tomorrow_activity_details][lainnya]" placeholder="Detail Rencana Lain..." class="w-full text-xs rounded-xl border-slate-300" rows="2">{{ old('form_data.tomorrow_activity_details.lainnya', $oldTomorrowDetails['lainnya'] ?? ($data['rencana_besok_lainnya'] ?? '')) }}</textarea>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -201,48 +290,82 @@
                             </div>
 
                         @elseif ($code === 'admin_project')
+                            @php
+                                $oldDocs = (array) old('form_data.documents_processed', $data['documents_processed'] ?? (array)($data['dokumen_diproses'] ?? []));
+                                $oldDocDetails = (array) old('form_data.document_details', $data['document_details'] ?? []);
+                                $oldProjects = (array) old('form_data.projects', $data['projects'] ?? []);
+                                if (empty($oldProjects) && !empty($data['nama_project'])) {
+                                    $oldProjects = [[
+                                        'project_description' => $data['nama_project'] ?? '',
+                                        'progress_percent' => $data['progres_persen'] ?? 0,
+                                    ]];
+                                }
+                                $oldProjCount = (int) old('form_data.project_count', $data['project_count'] ?? count($oldProjects));
+                            @endphp
                             <div class="space-y-4 text-sm" x-data="{
-                                selectedDocs: {{ json_encode((array) old('form_data.dokumen_diproses', $data['dokumen_diproses'] ?? [])) }},
-                                toggleDoc(val) {
-                                    if (val === 'tidak_ada') {
-                                        if (this.selectedDocs.includes('tidak_ada')) this.selectedDocs = ['tidak_ada'];
-                                    } else {
-                                        this.selectedDocs = this.selectedDocs.filter(item => item !== 'tidak_ada');
+                                selectedDocs: {{ json_encode($oldDocs) }},
+                                docDetails: {{ json_encode($oldDocDetails) }},
+                                hasDoc(doc) { return this.selectedDocs.includes(doc); },
+                                projectCount: {{ $oldProjCount }},
+                                projects: {{ json_encode($oldProjects) }},
+                                updateProjectCount(val) {
+                                    let count = parseInt(val) || 0;
+                                    while (this.projects.length < count) {
+                                        this.projects.push({ project_description: '', progress_percent: 0 });
                                     }
-                                },
-                                hasOther() { return this.selectedDocs.includes('lainnya'); }
+                                    if (count < this.projects.length) {
+                                        this.projects = this.projects.slice(0, count);
+                                    }
+                                    this.projectCount = count;
+                                }
                             }">
                                 <div>
-                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Pekerjaan Hari Ini:</label>
-                                    <textarea name="form_data[pekerjaan_hari_ini]" rows="2" class="w-full text-xs rounded-xl border-slate-300">{{ old('form_data.pekerjaan_hari_ini', $data['pekerjaan_hari_ini'] ?? '') }}</textarea>
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Project:</label>
-                                        <input type="text" name="form_data[nama_project]" value="{{ old('form_data.nama_project', $data['nama_project'] ?? '') }}" class="w-full text-xs rounded-xl border-slate-300">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Progres Project (%):</label>
-                                        <input type="number" min="0" max="100" name="form_data[progres_persen]" value="{{ old('form_data.progres_persen', $data['progres_persen'] ?? 0) }}" class="w-full text-xs rounded-xl border-slate-300">
-                                    </div>
-                                </div>
-
-                                <div>
                                     <label class="block text-xs font-semibold text-slate-700 mb-2">Dokumen yang Diproses:</label>
-                                    <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                                        @foreach(['po' => 'PO', 'bast' => 'BAST', 'invoice' => 'Invoice', 'tidak_ada' => 'Tidak ada', 'lainnya' => 'Yang lain'] as $val => $label)
+                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                        @foreach(['sow' => 'SOW', 'bast' => 'BAST', 'report' => 'Report', 'lainnya' => 'Yang lain'] as $val => $label)
                                             <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 text-xs cursor-pointer">
-                                                <input type="checkbox" name="form_data[dokumen_diproses][]" value="{{ $val }}"
-                                                       x-model="selectedDocs" @change="toggleDoc('{{ $val }}')"
+                                                <input type="checkbox" name="form_data[documents_processed][]" value="{{ $val }}"
+                                                       x-model="selectedDocs"
                                                        class="rounded border-slate-300 text-indigo-600">
                                                 <span>{{ $label }}</span>
                                             </label>
                                         @endforeach
                                     </div>
-                                    <div x-show="hasOther()" class="mt-2">
-                                        <input type="text" name="form_data[dokumen_lainnya]" value="{{ old('form_data.dokumen_lainnya', $data['dokumen_lainnya'] ?? '') }}" class="w-full text-xs rounded-xl border-slate-300" placeholder="Dokumen lainnya...">
+                                    <div class="space-y-2 mt-2">
+                                        <div x-show="hasDoc('sow')">
+                                            <textarea name="form_data[document_details][sow]" placeholder="Detail SOW..." class="w-full text-xs rounded-xl border-slate-300" rows="2">{{ old('form_data.document_details.sow', $oldDocDetails['sow'] ?? '') }}</textarea>
+                                        </div>
+                                        <div x-show="hasDoc('bast')">
+                                            <textarea name="form_data[document_details][bast]" placeholder="Detail BAST..." class="w-full text-xs rounded-xl border-slate-300" rows="2">{{ old('form_data.document_details.bast', $oldDocDetails['bast'] ?? '') }}</textarea>
+                                        </div>
+                                        <div x-show="hasDoc('report')">
+                                            <textarea name="form_data[document_details][report]" placeholder="Detail Report..." class="w-full text-xs rounded-xl border-slate-300" rows="2">{{ old('form_data.document_details.report', $oldDocDetails['report'] ?? '') }}</textarea>
+                                        </div>
+                                        <div x-show="hasDoc('lainnya')">
+                                            <textarea name="form_data[document_details][lainnya]" placeholder="Detail Dokumen Lain..." class="w-full text-xs rounded-xl border-slate-300" rows="2">{{ old('form_data.document_details.lainnya', $oldDocDetails['lainnya'] ?? ($data['dokumen_lainnya'] ?? '')) }}</textarea>
+                                        </div>
                                     </div>
+                                </div>
+
+                                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Jumlah Project:</label>
+                                        <input type="number" min="0" name="form_data[project_count]" x-model="projectCount" @change="updateProjectCount($event.target.value)" class="w-32 text-xs rounded-xl border-slate-300 bg-white">
+                                    </div>
+
+                                    <template x-for="(proj, index) in projects" :key="index">
+                                        <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
+                                            <span class="text-xs font-bold text-indigo-600" x-text="`Project #${index + 1}`"></span>
+                                            <div class="grid grid-cols-3 gap-2">
+                                                <div class="col-span-2">
+                                                    <input type="text" :name="`form_data[projects][${index}][project_description]`" x-model="proj.project_description" placeholder="Nama Project..." class="w-full text-xs rounded-xl border-slate-300">
+                                                </div>
+                                                <div>
+                                                    <input type="number" min="0" max="100" :name="`form_data[projects][${index}][progress_percent]`" x-model="proj.progress_percent" placeholder="Progres %" class="w-full text-xs rounded-xl border-slate-300">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
                                 </div>
 
                                 <div>
@@ -257,20 +380,47 @@
                             </div>
 
                         @elseif ($code === 'admin_procurement')
-                            <div class="space-y-4 text-sm">
+                            @php
+                                $oldCats = (array) old('form_data.work_categories', $data['work_categories'] ?? []);
+                                if (empty($oldCats)) {
+                                    if (!empty($data['jumlah_po']) && (int)$data['jumlah_po'] > 0) $oldCats[] = 'po';
+                                    if (!empty($data['pekerjaan_hari_ini'])) $oldCats[] = 'cari_barang';
+                                }
+                            @endphp
+                            <div class="space-y-4 text-sm" x-data="{
+                                categories: {{ json_encode($oldCats) }},
+                                hasCategory(c) { return this.categories.includes(c); }
+                            }">
                                 <div>
-                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Pekerjaan Hari Ini:</label>
-                                    <textarea name="form_data[pekerjaan_hari_ini]" rows="2" class="w-full text-xs rounded-xl border-slate-300">{{ old('form_data.pekerjaan_hari_ini', $data['pekerjaan_hari_ini'] ?? '') }}</textarea>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-2">Pilihan Kategori Pekerjaan:</label>
+                                    <div class="grid grid-cols-3 gap-2">
+                                        @foreach(['cari_barang' => 'Cari Barang', 'cari_teknisi' => 'Cari Teknisi', 'po' => 'PO'] as $val => $label)
+                                            <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 text-xs cursor-pointer">
+                                                <input type="checkbox" name="form_data[work_categories][]" value="{{ $val }}" x-model="categories" class="rounded border-slate-300 text-indigo-600">
+                                                <span>{{ $label }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
                                 </div>
 
-                                <div class="grid grid-cols-2 gap-3">
+                                <div x-show="hasCategory('cari_barang')">
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Detail Cari Barang:</label>
+                                    <textarea name="form_data[detail_cari_barang]" rows="2" class="w-full text-xs rounded-xl border-slate-300">{{ old('form_data.detail_cari_barang', $data['detail_cari_barang'] ?? ($data['pekerjaan_hari_ini'] ?? '')) }}</textarea>
+                                </div>
+
+                                <div x-show="hasCategory('cari_teknisi')">
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Detail Cari Teknisi:</label>
+                                    <textarea name="form_data[detail_cari_teknisi]" rows="2" class="w-full text-xs rounded-xl border-slate-300">{{ old('form_data.detail_cari_teknisi', $data['detail_cari_teknisi'] ?? '') }}</textarea>
+                                </div>
+
+                                <div x-show="hasCategory('po')" class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                                     <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Jumlah PO:</label>
-                                        <input type="number" min="0" name="form_data[jumlah_po]" value="{{ old('form_data.jumlah_po', $data['jumlah_po'] ?? 0) }}" class="w-full text-xs rounded-xl border-slate-300">
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Jumlah PO Dibuat:</label>
+                                        <input type="number" min="1" name="form_data[jumlah_po]" value="{{ old('form_data.jumlah_po', $data['jumlah_po'] ?? 1) }}" class="w-32 text-xs rounded-xl border-slate-300 bg-white">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Vendor Dihubungi:</label>
-                                        <input type="text" name="form_data[vendor_dihubungi]" value="{{ old('form_data.vendor_dihubungi', $data['vendor_dihubungi'] ?? '') }}" class="w-full text-xs rounded-xl border-slate-300">
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Detail PO & Vendor:</label>
+                                        <textarea name="form_data[detail_po_vendor]" rows="2" class="w-full text-xs rounded-xl border-slate-300 bg-white">{{ old('form_data.detail_po_vendor', $data['detail_po_vendor'] ?? ($data['vendor_dihubungi'] ?? '')) }}</textarea>
                                     </div>
                                 </div>
 
@@ -314,21 +464,45 @@
                             </div>
 
                         @elseif ($code === 'finance')
-                            <div class="space-y-4 text-sm">
+                            @php
+                                $oldInvoices = (array) old('form_data.invoice_details', $data['invoice_details'] ?? []);
+                                $oldInvCount = (int) old('form_data.invoice_count', $data['invoice_count'] ?? count($oldInvoices));
+                            @endphp
+                            <div class="space-y-4 text-sm" x-data="{
+                                invoiceCount: {{ $oldInvCount }},
+                                invoiceDetails: {{ json_encode($oldInvoices) }},
+                                updateInvoiceCount(val) {
+                                    let count = parseInt(val) || 0;
+                                    while (this.invoiceDetails.length < count) {
+                                        this.invoiceDetails.push({ description: '' });
+                                    }
+                                    if (count < this.invoiceDetails.length) {
+                                        this.invoiceDetails = this.invoiceDetails.slice(0, count);
+                                    }
+                                    this.invoiceCount = count;
+                                }
+                            }">
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-700 mb-1">Pekerjaan Hari Ini:</label>
                                     <textarea name="form_data[pekerjaan_hari_ini]" rows="2" class="w-full text-xs rounded-xl border-slate-300">{{ old('form_data.pekerjaan_hari_ini', $data['pekerjaan_hari_ini'] ?? '') }}</textarea>
                                 </div>
 
-                                <div class="grid grid-cols-2 gap-3">
+                                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                                     <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Invoice Dibuat:</label>
-                                        <input type="text" name="form_data[invoice_dibuat]" value="{{ old('form_data.invoice_dibuat', $data['invoice_dibuat'] ?? '') }}" class="w-full text-xs rounded-xl border-slate-300">
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Jumlah Invoice yang Dibuat:</label>
+                                        <input type="number" min="0" name="form_data[invoice_count]" x-model="invoiceCount" @change="updateInvoiceCount($event.target.value)" class="w-32 text-xs rounded-xl border-slate-300 bg-white">
                                     </div>
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Pembayaran:</label>
-                                        <input type="text" name="form_data[pembayaran]" value="{{ old('form_data.pembayaran', $data['pembayaran'] ?? '') }}" class="w-full text-xs rounded-xl border-slate-300">
-                                    </div>
+                                    <template x-for="(inv, index) in invoiceDetails" :key="index">
+                                        <div class="space-y-1">
+                                            <label class="block text-xs font-medium text-slate-600" x-text="`Detail Invoice #${index + 1} *`"></label>
+                                            <textarea :name="`form_data[invoice_details][${index}][description]`" x-model="inv.description" rows="2" class="w-full text-xs rounded-xl border-slate-300 bg-white"></textarea>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Jurnal:</label>
+                                    <textarea name="form_data[jurnal]" rows="2" class="w-full text-xs rounded-xl border-slate-300">{{ old('form_data.jurnal', $data['jurnal'] ?? ($data['pembayaran'] ?? '')) }}</textarea>
                                 </div>
 
                                 <div>

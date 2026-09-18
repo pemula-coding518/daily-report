@@ -1,75 +1,76 @@
 # Daily Report — Sistem Pelaporan Pekerjaan Harian Kantor
 
-Aplikasi web internal kantor berbasis **Laravel 11** yang dirancang untuk mempermudah karyawan dalam mengisi laporan pekerjaan harian secara cepat tanpa perlu login, serta menyediakan dashboard monitoring dan pengelolaan laporan terpusat bagi tim **Admin & HRD**.
+Aplikasi web internal kantor berbasis **Laravel 11** yang dirancang untuk mempermudah karyawan dalam mengisi laporan pekerjaan harian secara terstruktur tanpa proses login, serta menyediakan dashboard monitoring dan pengelolaan laporan terpusat bagi tim **Admin & HRD**.
 
 ---
 
-## 📌 Daftar Isi
+## Daftar Isi
 
-- [Fitur Utama](#-fitur-utama)
+- [Fitur Utama](#fitur-utama)
   - [1. Portal Karyawan (Tanpa Login)](#1-portal-karyawan-tanpa-login)
   - [2. Dashboard Monitoring Admin & HRD](#2-dashboard-monitoring-admin--hrd)
   - [3. Manajemen & Moderasi Laporan](#3-manajemen--moderasi-laporan)
   - [4. Manajemen Master Karyawan](#4-manajemen-master-karyawan)
   - [5. Sistem Autentikasi & Hak Akses (Role-Based)](#5-sistem-autentikasi--hak-akses-role-based)
-- [Teknologi yang Digunakan](#-teknologi-yang-digunakan)
-- [Struktur Database Utama](#-struktur-database-utama)
-- [Panduan Instalasi & Setup](#-panduan-instalasi--setup)
-- [Akun Default (Development)](#-akun-default-development)
-- [Menjalankan Pengujian (Testing)](#-menjalankan-pengujian-testing)
-- [Format & Standar Kode](#-format--standar-kode)
-- [Keamanan & Praktik Terbaik](#-keamanan--praktik-terbaik)
+- [Teknologi yang Digunakan](#teknologi-yang-digunakan)
+- [Struktur Database Utama](#struktur-database-utama)
+- [Panduan Instalasi & Setup](#panduan-instalasi--setup)
+- [Akun Default (Development)](#akun-default-development)
+- [Menjalankan Pengujian (Testing)](#menjalankan-pengujian-testing)
+- [Format & Standar Kode](#format--standar-kode)
+- [Keamanan & Praktik Terbaik](#keamanan--praktik-terbaik)
+- [Lisensi](#lisensi)
 
 ---
 
-## ✨ Fitur Utama
+## Fitur Utama
 
 ### 1. Portal Karyawan (Tanpa Login)
-- **Akses Langsung**: Karyawan membuka portal publik (`/`) tanpa perlu proses autentikasi/login.
-- **Pemilihan Tanggal Fleksibel**: Tanggal laporan dapat disesuaikan dengan kebutuhan operasional pekerjaan.
-- **Dropdown Reaktif**: Pilihan divisi memuat daftar nama karyawan aktif secara dinamis via AJAX.
-- **Formulir Spesifik 6 Divisi**:
-  1. **Teknisi**: Multi-select jenis pekerjaan, opsi dinamis *"Yang lain"*, status pengerjaan (*Selesai/Progres/Pending*), kendala, dan rencana besok.
-  2. **Admin Sales**: Pekerjaan hari ini, rencana besok, metrik angka (*customer dihubungi, quotation, closing*), dan kendala.
-  3. **Admin Project**: Nama proyek, persentase progres (0–100%), pekerjaan hari ini, kendala, rencana besok, dan dokumen yang diproses (*dengan aturan mutually exclusive untuk opsi "Tidak ada"*).
-  4. **Admin Procurement**: Jumlah PO dibuat, pekerjaan hari ini, vendor yang dihubungi, barang diterima/dikirim, kendala, dan rencana besok.
-  5. **System Informasi**: Pekerjaan hari ini, status pengerjaan, kendala, dan rencana besok.
-  6. **Finance**: Pekerjaan hari ini, invoice dibuat, pembayaran/pencairan dana, rekap kas/bank harian, kendala, dan rencana besok.
+- **Akses Langsung**: Karyawan mengakses formulir laporan publik (`/`) tanpa perlu proses login.
+- **Pemilihan Tanggal Fleksibel**: Tanggal pelaporan dapat disesuaikan dengan kebutuhan operasional pekerjaan.
+- **Dropdown Reaktif**: Pilihan divisi memuat daftar nama karyawan aktif secara dinamis via asynchronous request.
+- **Formulir Spesifik Divisi**:
+  - **Teknisi**: Jenis pekerjaan, detail deskripsi per pekerjaan, status pengerjaan mandiri (*Selesai/Progres/Pending*), kendala, dan rencana besok.
+  - **Admin Sales**: Aktivitas pekerjaan hari ini dan rencana besok dengan detail khusus, metrik numerik (*customer dihubungi, quotation, closing*), dan kendala.
+  - **Admin Project**: Pemrosesan dokumen (*SOW, BAST, Report, Lainnya*) dengan rincian penjelasan, daftar project dinamis beserta progres persentase, kendala, dan rencana besok.
+  - **Admin Procurement**: Kategori pekerjaan (*Cari Barang, Cari Teknisi, PO*), input jumlah PO dan rincian vendor, barang diterima/dikirim, kendala, dan rencana besok.
+  - **System Informasi**: Pekerjaan hari ini, status pengerjaan, kendala, dan rencana besok.
+  - **Finance**: Pekerjaan hari ini, daftar detail invoice dinamis, jurnal pencatatan keuangan, rekap kas/bank, kendala, dan rencana besok.
 - **Integritas Data & Snapshot**:
-  - Validasi ketat `UNIQUE(employee_id, report_date)` mencegah pengiriman ganda pada tanggal yang sama.
-  - Snapshot nama karyawan, nama divisi, kode divisi, dan versi formulir disimpan bersama laporan agar riwayat historis tetap valid meskipun data master berubah di masa depan.
+  - Validasi ketat `UNIQUE(employee_id, report_date)` guna mencegah pengiriman ganda pada tanggal yang sama.
+  - Snapshot nama karyawan, nama divisi, kode divisi, dan versi formulir disimpan bersama laporan agar riwayat historis tetap valid meskipun terjadi pembaruan data master.
 
 ### 2. Dashboard Monitoring Admin & HRD
-- **Filter Tanggal & Divisi**: Mengubah tanggal atau divisi secara instan memperbarui seluruh data laporan yang ditampilkan.
-- **Kartu Metrik**: Total Karyawan Aktif, Laporan Masuk (Tanggal Terpilih), Total Arsip Laporan (All Time), dan Total Unit Divisi.
-- **Rekap Laporan Per Divisi**: Jumlah laporan yang masuk pada tanggal terpilih, total staf aktif, dan total arsip per unit kerja, lengkap dengan link filter cepat per divisi.
-- **Daftar Laporan Terbaru**: Menampilkan 10 pengiriman laporan terbaru dengan status aktif/dibatalkan dan akses cepat ke detail laporan.
+- **Filter Tanggal & Divisi**: Mengubah tanggal atau unit kerja secara langsung memutakhirkan seluruh data laporan yang ditampilkan.
+- **Kartu Metrik**: Total Karyawan Aktif, Laporan Masuk pada Tanggal Terpilih, Total Arsip Laporan (All Time), dan Total Unit Divisi.
+- **Rekap Laporan Per Divisi**: Menampilkan jumlah laporan masuk pada tanggal terpilih, total staf aktif, dan total arsip per unit kerja, dilengkapi tautan filter langsung.
+- **Daftar Laporan Terbaru**: Menampilkan 10 pengiriman laporan terbaru dengan status aktif/dibatalkan serta akses cepat ke detail laporan.
 
 ### 3. Manajemen & Moderasi Laporan
 - **Filter Komprehensif**: Pencarian berdasarkan rentang tanggal (`start_date` – `end_date`), divisi, status laporan (*Aktif/Dibatalkan*), dan pencarian nama.
-- **Tampilan Detail Laporan**: Format rapi untuk data payload JSON spesifik tiap divisi.
-- **Koreksi & Edit**: Staf Admin/HRD dapat membantu mengedit konten laporan jika ada kesalahan input dari karyawan.
-- **Pembatalan & Pemulihan**: Status laporan dapat diubah menjadi `cancelled` atau `active` (soft-status) agar integritas pengiriman tetap terjaga.
-- **Ekspor CSV / Excel**: Fitur unduh laporan berformat CSV dengan *UTF-8 Byte Order Mark (BOM)* agar langsung terbaca rapi di Microsoft Excel.
+- **Tampilan Detail Laporan**: Penyajian terstruktur untuk seluruh data spesifik tiap divisi tanpa menampilkan format JSON mentah.
+- **Koreksi & Edit**: Admin/HRD dapat membantu mengoreksi konten laporan jika terdapat kesalahan input dari karyawan.
+- **Pembatalan & Pemulihan**: Status laporan dapat diubah menjadi `cancelled` atau `active` (soft-status) untuk menjaga integritas data.
+- **Ekspor CSV / Excel**: Ekspor data laporan berformat CSV dengan *UTF-8 Byte Order Mark (BOM)* untuk kompatibilitas penuh dengan Microsoft Excel.
 
 ### 4. Manajemen Master Karyawan
 - **Master Karyawan**: Penambahan, pengubahan data, dan penugasan divisi.
-- **Toggle Status Aktif**: Menonaktifkan karyawan yang keluar/cuti panjang tanpa menghapus data historis pelaporan (karyawan non-aktif otomatis disembunyikan dari form publik).
+- **Toggle Status Aktif**: Menonaktifkan karyawan yang sudah tidak aktif tanpa menghapus riwayat pelaporan terdahulu. Karyawan non-aktif secara otomatis disembunyikan dari pilihan formulir publik.
 
 ### 5. Sistem Autentikasi & Hak Akses (Role-Based)
 - **Custom Authentication Guard**: Menggunakan guard `admin_hrd` berbasis tabel internal `admin_hrd_users`.
-- **Tanpa Registrasi Publik**: Hanya akun yang didaftarkan oleh Administrator yang dapat mengakses dashboard.
-- **Login Khusus Kantor**: Form login di `/admin/login` dengan label *"Email Kantor"* & *"Password"*, opsi remember-me, dan pesan kegagalan aman.
+- **Tanpa Registrasi Publik**: Hanya akun yang didaftarkan oleh Administrator yang dapat mengakses panel dashboard.
+- **Login Khusus Kantor**: Form login di `/admin/login` dengan label *"Email Kantor"* & *"Password"*, opsi remember-me, dan penanganan autentikasi aman.
 - **2 Tingkatan Peran (Role)**:
-  - **Administrator (`admin`)**: Akses penuh ke seluruh dashboard, laporan, karyawan, ekspor, serta **Kelola Akun Staf Admin/HRD**.
-  - **HRD Team (`hrd`)**: Akses operasional ke dashboard, moderasi laporan, manajemen karyawan, dan ekspor data (dibatasi dari menu kelola akun).
+  - **Administrator (`admin`)**: Hak akses menyeluruh ke dashboard, laporan, master karyawan, ekspor data, serta **Kelola Akun Staf Admin/HRD**.
+  - **HRD Team (`hrd`)**: Hak akses operasional ke dashboard, moderasi laporan, master karyawan, dan ekspor data (dibatasi dari menu kelola akun).
 - **Keamanan Akun**:
-  - Middleware aktifasi akun: Akun non-aktif ditolak saat login, dan sesi langsung diputus jika akun dinonaktifkan di tengah sesi.
+  - Middleware aktivasi akun: Akun non-aktif ditolak saat login, dan sesi aktif langsung diputus jika akun dinonaktifkan di tengah sesi.
   - Perlindungan *self-deactivation*: Pengguna tidak dapat menonaktifkan akun miliknya sendiri.
 
 ---
 
-## 🛠 Teknologi yang Digunakan
+## Teknologi yang Digunakan
 
 - **Backend**: [PHP 8.3+](https://www.php.net/) & [Laravel 11](https://laravel.com/)
 - **Frontend**: [Blade Templates](https://laravel.com/docs/blade), [Tailwind CSS 3](https://tailwindcss.com/), dan [Alpine.js](https://alpinejs.dev/)
@@ -80,7 +81,7 @@ Aplikasi web internal kantor berbasis **Laravel 11** yang dirancang untuk memper
 
 ---
 
-## 🗄 Struktur Database Utama
+## Struktur Database Utama
 
 ```
 ├── divisions                # Master data divisi kantor
@@ -91,7 +92,7 @@ Aplikasi web internal kantor berbasis **Laravel 11** yang dirancang untuk memper
 
 ---
 
-## 🚀 Panduan Instalasi & Setup
+## Panduan Instalasi & Setup
 
 ### Prasyarat
 - PHP >= 8.3 (dengan ekstensi `pdo`, `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `json`, `curl`, `bcmath`)
@@ -137,7 +138,7 @@ Aplikasi web internal kantor berbasis **Laravel 11** yang dirancang untuk memper
    ```bash
    npm run build
    ```
-   *(Atau gunakan `npm run dev` untuk mode pengembangan dengan hot module replacement).*
+   *(Atau gunakan `npm run dev` untuk mode pengembangan).*
 
 8. **Jalankan Web Server**:
    ```bash
@@ -147,20 +148,20 @@ Aplikasi web internal kantor berbasis **Laravel 11** yang dirancang untuk memper
 
 ---
 
-## 👤 Akun Default (Development)
+## Akun Default (Development)
 
-> **PENTING**: Akun di bawah ini dihasilkan dari database seeder untuk keperluan pengujian lokal. **Ubah password atau hapus akun demo sebelum menerapkan ke server produksi.**
+> **Catatan**: Akun di bawah ini dihasilkan dari database seeder untuk keperluan pengujian lokal. Harap ubah password atau sesuaikan akun sebelum penerapan ke lingkungan produksi.
 
 | Role | Email Kantor | Password Default | Hak Akses |
 | :--- | :--- | :--- | :--- |
-| **Administrator** | `admin@kantor.com` | `password` | Penuh + Kelola Akun Admin/HRD |
+| **Administrator** | `admin@kantor.com` | `password` | Akses Penuh + Kelola Akun Admin/HRD |
 | **HRD Team** | `hrd@kantor.com` | `password` | Monitoring, Laporan, Karyawan, Ekspor |
 
 ---
 
-## 🧪 Menjalankan Pengujian (Testing)
+## Menjalankan Pengujian (Testing)
 
-Proyek ini dilengkapi dengan rangkaian pengujian otomatis fitur dan unit menggunakan PHPUnit:
+Proyek ini dilengkapi dengan rangkaian automated test suite menggunakan PHPUnit:
 
 ```bash
 php artisan test
@@ -176,9 +177,9 @@ Cakupan pengujian mencakup:
 
 ---
 
-## 🎨 Format & Standar Kode
+## Format & Standar Kode
 
-Untuk memastikan kepatuhan standar penulisan kode PHP:
+Pemeriksaan dan formatting standar penulisan kode PHP:
 
 ```bash
 vendor/bin/pint
@@ -186,17 +187,18 @@ vendor/bin/pint
 
 ---
 
-## 🔒 Keamanan & Praktik Terbaik
+## Keamanan & Praktik Terbaik
 
 - **Tanpa Registrasi Terbuka**: Sistem autentikasi hanya dapat diakses melalui penambahan manual oleh Administrator.
 - **Enkripsi Password**: Seluruh password disimpan menggunakan hashing aman bawaan Laravel (*Bcrypt / Argon2id*).
 - **Proteksi CSRF**: Seluruh formulir web terlindungi dari serangan *Cross-Site Request Forgery*.
-- **Rate Limiting**: Endpoint login dibatasi (`throttle:10,1`) untuk mencegah percobaan brute-force.
+- **Rate Limiting**: Endpoint login dan pengiriman laporan dibatasi untuk mencegah percobaan brute-force atau spam.
 - **Isolasi Sesi**: Akun yang dinonaktifkan akan langsung kehilangan hak akses pada request berikutnya.
 
 ---
 
-## 📄 Lisensi
+## Lisensi
 
-Aplikasi ini bersifat internal dan berlisensi komersial/privat untuk kebutuhan operasional kantor.
+Aplikasi ini bersifat internal dan berlisensi privat untuk kebutuhan operasional kantor.
+
 

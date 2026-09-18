@@ -168,9 +168,110 @@ class ReportController extends Controller
 
             foreach ($reports as $report) {
                 $formDataSummary = [];
-                if (is_array($report->form_data)) {
-                    foreach ($report->form_data as $key => $val) {
-                        $formattedVal = is_array($val) ? implode(', ', $val) : $val;
+                $data = is_array($report->form_data) ? $report->form_data : [];
+                $code = $report->division_code_snapshot;
+                $v = (int) ($report->form_version ?? 1);
+
+                if ($code === 'teknisi' && $v >= 2 && ! empty($data['work_items'])) {
+                    $itemsStr = [];
+                    foreach ((array) $data['work_items'] as $item) {
+                        $t = $item['type'] ?? '';
+                        $custom = $item['custom_type'] ?? '';
+                        $tName = ($t === 'lainnya' && $custom) ? $custom : ucfirst(str_replace('_', ' ', $t));
+                        $st = ucfirst($item['status'] ?? 'selesai');
+                        $det = $item['detail'] ?? '';
+                        $itemsStr[] = "[{$tName} ({$st}): {$det}]";
+                    }
+                    $formDataSummary[] = 'Pekerjaan: '.implode('; ', $itemsStr);
+                    if (! empty($data['kendala'])) {
+                        $formDataSummary[] = 'Kendala: '.$data['kendala'];
+                    }
+                    if (! empty($data['rencana_besok'])) {
+                        $formDataSummary[] = 'Rencana Besok: '.$data['rencana_besok'];
+                    }
+                } elseif ($code === 'admin_sales' && $v >= 2 && ! empty($data['today_activities'])) {
+                    $todayStr = [];
+                    foreach ((array) $data['today_activities'] as $act) {
+                        $det = $data['today_activity_details'][$act] ?? '';
+                        $todayStr[] = ucfirst(str_replace('_', ' ', $act)).($det ? " ({$det})" : '');
+                    }
+                    $formDataSummary[] = 'Pekerjaan Hari Ini: '.implode('; ', $todayStr);
+
+                    $tomStr = [];
+                    foreach ((array) ($data['tomorrow_activities'] ?? []) as $act) {
+                        $det = $data['tomorrow_activity_details'][$act] ?? '';
+                        $tomStr[] = ucfirst(str_replace('_', ' ', $act)).($det ? " ({$det})" : '');
+                    }
+                    $formDataSummary[] = 'Rencana Besok: '.implode('; ', $tomStr);
+                    $formDataSummary[] = "Follow Up: {$data['jumlah_customer']} | Quotation: {$data['jumlah_quotation']} | Closing: {$data['jumlah_closing']}";
+                    if (! empty($data['kendala'])) {
+                        $formDataSummary[] = 'Kendala: '.$data['kendala'];
+                    }
+                } elseif ($code === 'admin_project' && $v >= 2 && isset($data['documents_processed'])) {
+                    $docStr = [];
+                    foreach ((array) $data['documents_processed'] as $doc) {
+                        $det = $data['document_details'][$doc] ?? '';
+                        $docStr[] = strtoupper($doc).($det ? " ({$det})" : '');
+                    }
+                    $formDataSummary[] = 'Dokumen: '.implode('; ', $docStr);
+
+                    $projStr = [];
+                    foreach ((array) ($data['projects'] ?? []) as $proj) {
+                        $projStr[] = ($proj['project_description'] ?? '')." ({$proj['progress_percent']}%)";
+                    }
+                    $formDataSummary[] = 'Project ('.count($projStr).'): '.(empty($projStr) ? 'Tidak ada' : implode('; ', $projStr));
+                    if (! empty($data['kendala'])) {
+                        $formDataSummary[] = 'Kendala: '.$data['kendala'];
+                    }
+                    if (! empty($data['rencana_besok'])) {
+                        $formDataSummary[] = 'Rencana Besok: '.$data['rencana_besok'];
+                    }
+                } elseif ($code === 'admin_procurement' && $v >= 2 && isset($data['work_categories'])) {
+                    $catStr = [];
+                    foreach ((array) $data['work_categories'] as $cat) {
+                        if ($cat === 'cari_barang') {
+                            $catStr[] = 'Cari Barang: '.($data['detail_cari_barang'] ?? '-');
+                        } elseif ($cat === 'cari_teknisi') {
+                            $catStr[] = 'Cari Teknisi: '.($data['detail_cari_teknisi'] ?? '-');
+                        } elseif ($cat === 'po') {
+                            $catStr[] = "PO ({$data['jumlah_po']}): ".($data['detail_po_vendor'] ?? '-');
+                        }
+                    }
+                    $formDataSummary[] = 'Pekerjaan: '.implode('; ', $catStr);
+                    if (! empty($data['barang_diterima_dikirim'])) {
+                        $formDataSummary[] = 'Barang: '.$data['barang_diterima_dikirim'];
+                    }
+                    if (! empty($data['kendala'])) {
+                        $formDataSummary[] = 'Kendala: '.$data['kendala'];
+                    }
+                    if (! empty($data['rencana_besok'])) {
+                        $formDataSummary[] = 'Rencana Besok: '.$data['rencana_besok'];
+                    }
+                } elseif ($code === 'finance' && $v >= 2 && isset($data['invoice_count'])) {
+                    $formDataSummary[] = 'Pekerjaan: '.($data['pekerjaan_hari_ini'] ?? '-');
+                    $invStr = [];
+                    foreach ((array) ($data['invoice_details'] ?? []) as $inv) {
+                        $invStr[] = $inv['description'] ?? '';
+                    }
+                    $formDataSummary[] = 'Invoice ('.count($invStr).'): '.(empty($invStr) ? 'Tidak ada' : implode('; ', $invStr));
+                    $formDataSummary[] = 'Jurnal: '.($data['jurnal'] ?? '-');
+                    if (! empty($data['rekap_kas_bank'])) {
+                        $formDataSummary[] = 'Kas/Bank: '.$data['rekap_kas_bank'];
+                    }
+                    if (! empty($data['kendala'])) {
+                        $formDataSummary[] = 'Kendala: '.$data['kendala'];
+                    }
+                    if (! empty($data['rencana_besok'])) {
+                        $formDataSummary[] = 'Rencana Besok: '.$data['rencana_besok'];
+                    }
+                } else {
+                    // Fallback for legacy v1 or other divisions
+                    foreach ($data as $key => $val) {
+                        if (is_array($val)) {
+                            $formattedVal = json_encode($val, JSON_UNESCAPED_UNICODE);
+                        } else {
+                            $formattedVal = (string) $val;
+                        }
                         $formDataSummary[] = ucfirst(str_replace('_', ' ', $key)).': '.$formattedVal;
                     }
                 }
