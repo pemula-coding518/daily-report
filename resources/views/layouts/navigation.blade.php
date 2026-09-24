@@ -6,9 +6,7 @@
                 <!-- Logo -->
                 <div class="shrink-0 flex items-center">
                     <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow">
-                            DR
-                        </div>
+                        <img src="{{ asset('images/logo-gs.png') }}" alt="Logo GS" class="h-8 w-auto object-contain" />
                         <span class="font-bold text-slate-800 text-sm hidden md:inline">Daily Report Panel</span>
                     </a>
                 </div>

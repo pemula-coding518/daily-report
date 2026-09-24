@@ -18,9 +18,7 @@
     <div class="w-full max-w-md">
         <!-- Logo & Header -->
         <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 text-white font-bold text-2xl shadow-lg shadow-indigo-600/20 mb-3">
-                DR
-            </div>
+            <img src="{{ asset('images/logo-gs.png') }}" alt="Logo GS" class="h-14 w-auto object-contain mx-auto mb-3" />
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Daily Report Kantor</h1>
             <p class="text-xs text-slate-500 mt-1">Portal Khusus Administrator & Tim HRD</p>
         </div>

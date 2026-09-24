@@ -19,9 +19,7 @@
     <header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-30">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <a href="{{ route('report.create') }}" class="flex items-center gap-3 group">
-                <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md group-hover:bg-indigo-700 transition">
-                    DR
-                </div>
+                <img src="{{ asset('images/logo-gs.png') }}" alt="Logo GS" class="h-10 w-auto object-contain" />
                 <div>
                     <h1 class="text-lg font-bold text-slate-900 leading-tight">Daily Report</h1>
                     <p class="text-xs text-slate-500">Laporan Pekerjaan Harian Internal</p>
