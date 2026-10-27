@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -65,6 +66,16 @@ class AdminHrdUser extends Authenticatable
     public function isHrd(): bool
     {
         return $this->role === 'hrd';
+    }
+
+    /**
+     * Get the HRD daily reports created by this user.
+     *
+     * @return HasMany<HrdDailyReport, $this>
+     */
+    public function hrdDailyReports(): HasMany
+    {
+        return $this->hasMany(HrdDailyReport::class, 'admin_hrd_user_id');
     }
 
     /**

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EmployeeController;
+use App\Http\Controllers\Admin\HrdReportController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\PublicReportController;
 use Illuminate\Support\Facades\Route;
@@ -47,6 +48,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:admin_hrd', 'admin.act
     Route::put('/reports/{report}', [ReportController::class, 'update'])->name('reports.update');
     Route::patch('/reports/{report}/cancel', [ReportController::class, 'cancel'])->name('reports.cancel');
     Route::patch('/reports/{report}/restore', [ReportController::class, 'restore'])->name('reports.restore');
+
+    // HRD Daily Reports (Admin & HRD)
+    Route::get('/hrd-reports', [HrdReportController::class, 'index'])->name('hrd-reports.index');
+    Route::get('/hrd-reports/create', [HrdReportController::class, 'create'])->name('hrd-reports.create');
+    Route::post('/hrd-reports', [HrdReportController::class, 'store'])->name('hrd-reports.store');
+    Route::get('/hrd-reports/{hrdReport}', [HrdReportController::class, 'show'])->name('hrd-reports.show');
 
     // Super Admin / Admin Account Management (Role 'admin' only)
     Route::middleware('role.admin')->group(function () {
