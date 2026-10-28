@@ -72,6 +72,25 @@ class StoreHrdDailyReportRequest extends FormRequest
     }
 
     /**
+     * Siapkan input sebelum validasi untuk menentukan report_type secara otomatis jika belum diisi.
+     */
+    protected function prepareForValidation(): void
+    {
+        $hasEmployees = ! empty($this->input('employees'));
+        $hasOffice = ! empty($this->input('office_items'));
+
+        $inputReportType = $this->input('report_type');
+
+        if ($hasEmployees && $hasOffice) {
+            $this->merge(['report_type' => 'both']);
+        } elseif ($hasEmployees && empty($inputReportType)) {
+            $this->merge(['report_type' => 'employee']);
+        } elseif ($hasOffice && empty($inputReportType)) {
+            $this->merge(['report_type' => 'office']);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -82,10 +101,10 @@ class StoreHrdDailyReportRequest extends FormRequest
 
         $rules = [
             'report_date' => ['required', 'date'],
-            'report_type' => ['required', 'in:employee,office'],
+            'report_type' => ['required', Rule::in(['employee', 'office', 'both'])],
         ];
 
-        if ($reportType === 'employee') {
+        if ($reportType === 'employee' || $reportType === 'both') {
             $rules['employees'] = ['required', 'array', 'min:1'];
             $rules['employees.*.input_mode'] = ['required', 'in:select,manual'];
             $rules['employees.*.employee_id'] = [
@@ -113,7 +132,7 @@ class StoreHrdDailyReportRequest extends FormRequest
             $rules['employees.*.categories.*.notes'] = ['required', 'string'];
         }
 
-        if ($reportType === 'office') {
+        if ($reportType === 'office' || $reportType === 'both') {
             $rules['office_items'] = ['required', 'array', 'min:1'];
             $rules['office_items.*.category'] = ['required', 'string', Rule::in(self::OFFICE_CATEGORIES)];
             $rules['office_items.*.finding'] = ['required', 'string'];
@@ -131,8 +150,20 @@ class StoreHrdDailyReportRequest extends FormRequest
     {
         $validator->after(function (Validator $validator) {
             $reportType = $this->input('report_type');
+            $hasEmployees = ! empty($this->input('employees'));
+            $hasOffice = ! empty($this->input('office_items'));
 
-            if ($reportType === 'employee') {
+            if (! $hasEmployees && ! $hasOffice) {
+                $validator->errors()->add(
+                    'report_type',
+                    'Minimal salah satu jenis monitoring (Monitoring Karyawan atau Monitoring Kondisi Kantor) wajib diisi.'
+                );
+
+                return;
+            }
+
+            // Validasi detail karyawan jika bagian karyawan disertakan
+            if ($reportType === 'employee' || $reportType === 'both' || $hasEmployees) {
                 $employees = (array) $this->input('employees', []);
                 $seenEmployeeIds = [];
 
@@ -186,8 +217,8 @@ class StoreHrdDailyReportRequest extends FormRequest
                 }
             }
 
-            // Validasi kategori duplikat pada monitoring kantor
-            if ($reportType === 'office') {
+            // Validasi detail kantor jika bagian kantor disertakan
+            if ($reportType === 'office' || $reportType === 'both' || $hasOffice) {
                 $officeItems = (array) $this->input('office_items', []);
                 $seen = [];
                 foreach ($officeItems as $index => $item) {
@@ -240,6 +271,8 @@ class StoreHrdDailyReportRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'report_type.required' => 'Jenis monitoring wajib ditentukan.',
+            'report_type.in' => 'Jenis monitoring tidak valid.',
             'employees.required' => 'Minimal satu entri karyawan wajib ditambahkan.',
             'employees.min' => 'Minimal satu entri karyawan wajib ditambahkan.',
             'employees.*.categories.required' => 'Minimal satu kategori monitoring wajib dipilih untuk karyawan ini.',

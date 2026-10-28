@@ -33,7 +33,9 @@
                     <div>
                         <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Jenis Laporan</span>
                         <h3 class="text-xl font-bold text-slate-900 mt-0.5">
-                            @if ($hrdReport->report_type === 'employee')
+                            @if ($hrdReport->report_type === 'both')
+                                Monitoring Karyawan &amp; Kondisi Kantor
+                            @elseif ($hrdReport->report_type === 'employee')
                                 Monitoring Karyawan
                             @else
                                 Monitoring Kondisi Kantor
@@ -42,13 +44,18 @@
                     </div>
 
                     <div>
-                        @if ($hrdReport->report_type === 'employee')
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800">
+                        @if ($hrdReport->report_type === 'both')
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                                <span class="w-2 h-2 rounded-full bg-purple-600"></span>
+                                Monitoring Karyawan & Kantor
+                            </span>
+                        @elseif ($hrdReport->report_type === 'employee')
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
                                 <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
                                 Monitoring Karyawan
                             </span>
                         @else
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                                 <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
                                 Area Kantor
                             </span>
@@ -70,7 +77,13 @@
                     <div>
                         <span class="text-slate-400 block font-semibold">Subjek Laporan</span>
                         <span class="font-medium text-slate-700 text-sm">
-                            {{ $hrdReport->report_type === 'employee' ? $hrdReport->employee_name : 'Kondisi Kantor' }}
+                            @if ($hrdReport->report_type === 'both')
+                                {{ $hrdReport->employee_name }} &amp; Kondisi Kantor
+                            @elseif ($hrdReport->report_type === 'employee')
+                                {{ $hrdReport->employee_name }}
+                            @else
+                                Kondisi Kantor
+                            @endif
                         </span>
                     </div>
 
@@ -81,68 +94,56 @@
                 </div>
             </div>
 
-            <!-- 2. Konten Monitoring -->
-            <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
-                
-                @php
-                    $items = is_array($hrdReport->monitoring_data) ? $hrdReport->monitoring_data : [];
+            @php
+                $employeeCategoryLabels = [
+                    'kedisiplinan_karyawan' => 'Kedisiplinan Karyawan',
+                    'sikap_perilaku' => 'Sikap dan Perilaku',
+                    'aktivitas_tanggung_jawab' => 'Aktivitas dan Tanggung Jawab Pekerjaan',
+                    'komunikasi_koordinasi' => 'Komunikasi dan Koordinasi',
+                    'kepatuhan_aturan' => 'Kepatuhan terhadap Aturan Perusahaan',
+                    'kerja_sama' => 'Kerja Sama Antarkaryawan',
+                    'kendala_permasalahan' => 'Kendala / Permasalahan Karyawan',
+                    'hal_positif_apresiasi' => 'Hal Positif / Apresiasi Karyawan',
+                    'temuan_lainnya' => 'Temuan Lainnya',
+                ];
 
-                    $employeeCategoryLabels = [
-                        'kedisiplinan_karyawan' => 'Kedisiplinan Karyawan',
-                        'sikap_perilaku' => 'Sikap dan Perilaku',
-                        'aktivitas_tanggung_jawab' => 'Aktivitas dan Tanggung Jawab Pekerjaan',
-                        'komunikasi_koordinasi' => 'Komunikasi dan Koordinasi',
-                        'kepatuhan_aturan' => 'Kepatuhan terhadap Aturan Perusahaan',
-                        'kerja_sama' => 'Kerja Sama Antarkaryawan',
-                        'kendala_permasalahan' => 'Kendala / Permasalahan Karyawan',
-                        'hal_positif_apresiasi' => 'Hal Positif / Apresiasi Karyawan',
-                        'temuan_lainnya' => 'Temuan Lainnya',
-                    ];
+                $officeCategoryLabels = [
+                    'kebersihan_kerapian' => 'Kebersihan dan Kerapian',
+                    'fasilitas_peralatan' => 'Fasilitas dan Peralatan',
+                    'keamanan_kenyamanan_k3' => 'Keamanan, Kenyamanan / Keselamatan Kerja',
+                ];
 
-                    $officeCategoryLabels = [
-                        'kebersihan_kerapian' => 'Kebersihan dan Kerapian',
-                        'fasilitas_peralatan' => 'Fasilitas dan Peralatan',
-                        'keamanan_kenyamanan_k3' => 'Keamanan, Kenyamanan / Keselamatan Kerja',
-                    ];
+                $actionLabels = [
+                    'tidak_perlu_tindakan' => 'Tidak perlu tindakan',
+                    'mengingatkan_karyawan' => 'Mengingatkan karyawan',
+                    'koordinasi_atasan' => 'Koordinasi dengan atasan',
+                    'melaporkan_kerusakan' => 'Melaporkan kerusakan',
+                    'mengajukan_perbaikan' => 'Mengajukan perbaikan',
+                ];
 
-                    $actionLabels = [
-                        'tidak_perlu_tindakan' => 'Tidak perlu tindakan',
-                        'mengingatkan_karyawan' => 'Mengingatkan karyawan',
-                        'koordinasi_atasan' => 'Koordinasi dengan atasan',
-                        'melaporkan_kerusakan' => 'Melaporkan kerusakan',
-                        'mengajukan_perbaikan' => 'Mengajukan perbaikan',
-                    ];
+                $actionColors = [
+                    'tidak_perlu_tindakan' => 'bg-slate-100 text-slate-700',
+                    'mengingatkan_karyawan' => 'bg-amber-100 text-amber-800',
+                    'koordinasi_atasan' => 'bg-indigo-100 text-indigo-800',
+                    'melaporkan_kerusakan' => 'bg-rose-100 text-rose-800',
+                    'mengajukan_perbaikan' => 'bg-blue-100 text-blue-800',
+                ];
 
-                    $actionColors = [
-                        'tidak_perlu_tindakan' => 'bg-slate-100 text-slate-700',
-                        'mengingatkan_karyawan' => 'bg-amber-100 text-amber-800',
-                        'koordinasi_atasan' => 'bg-indigo-100 text-indigo-800',
-                        'melaporkan_kerusakan' => 'bg-rose-100 text-rose-800',
-                        'mengajukan_perbaikan' => 'bg-blue-100 text-blue-800',
-                    ];
-                @endphp
+                $employeeList = $hrdReport->getEmployeesData();
+                $officeItems = $hrdReport->getOfficeData();
+            @endphp
 
-                <!-- TAMPILAN MONITORING KARYAWAN -->
-                @if ($hrdReport->report_type === 'employee')
-                    @php
-                        // Cek apakah format baru (array of employees) atau format lama (array of categories)
-                        $isMultiEmployeeFormat = isset($items[0]['categories']) || isset($items[0]['employee_name']);
-                        
-                        $employeeList = $isMultiEmployeeFormat ? $items : [
-                            [
-                                'employee_id' => $hrdReport->employee_id,
-                                'employee_name' => $hrdReport->employee_name,
-                                'follow_up_status' => null,
-                                'categories' => $items,
-                            ]
-                        ];
-                    @endphp
-
+            <!-- 2. KONTEN MONITORING KARYAWAN -->
+            @if ($hrdReport->hasEmployeeMonitoring() && count($employeeList) > 0)
+                <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
                     <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
-                        <h4 class="text-base font-bold text-slate-900">
-                            Hasil Monitoring Karyawan
-                        </h4>
-                        <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-indigo-600"></span>
+                            <h4 class="text-base font-bold text-slate-900">
+                                Hasil Monitoring Karyawan
+                            </h4>
+                        </div>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700">
                             Total: {{ count($employeeList) }} Karyawan
                         </span>
                     </div>
@@ -181,7 +182,7 @@
 
                                 <!-- Detail Kategori Monitoring untuk Karyawan ini -->
                                 <div class="p-5 sm:p-6 space-y-4">
-                                    <span class="block text-xs font-bold uppercase tracking-wider text-slate-400">Kategori, Status Tindak Lanjut, & Detail Catatan:</span>
+                                    <span class="block text-xs font-bold uppercase tracking-wider text-slate-400">Kategori, Status Tindak Lanjut, &amp; Detail Catatan:</span>
                                     
                                     <div class="space-y-4">
                                         @forelse ($empCategories as $catItem)
@@ -229,21 +230,26 @@
                             <p class="text-xs text-slate-400 italic">Tidak ada catatan monitoring karyawan.</p>
                         @endforelse
                     </div>
-                @endif
+                </div>
+            @endif
 
-                <!-- TAMPILAN MONITORING KONDISI KANTOR -->
-                @if ($hrdReport->report_type === 'office')
+            <!-- 3. KONTEN MONITORING KONDISI KANTOR -->
+            @if ($hrdReport->hasOfficeMonitoring() && count($officeItems) > 0)
+                <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
                     <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
-                        <h4 class="text-base font-bold text-slate-900">
-                            Hasil Monitoring Kondisi Kantor
-                        </h4>
-                        <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600">
-                            Total: {{ count($items) }}
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-emerald-600"></span>
+                            <h4 class="text-base font-bold text-slate-900">
+                                Hasil Monitoring Kondisi Kantor
+                            </h4>
+                        </div>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700">
+                            Total: {{ count($officeItems) }} Temuan
                         </span>
                     </div>
 
                     <div class="space-y-5">
-                        @forelse ($items as $item)
+                        @forelse ($officeItems as $item)
                             @php
                                 $catKey = $item['category'] ?? '';
                                 $label = $officeCategoryLabels[$catKey] ?? ucwords(str_replace('_', ' ', $catKey));
@@ -282,8 +288,8 @@
                             <p class="text-xs text-slate-400 italic">Tidak ada catatan kondisi kantor.</p>
                         @endforelse
                     </div>
-                @endif
-            </div>
+                </div>
+            @endif
 
         </div>
     </div>

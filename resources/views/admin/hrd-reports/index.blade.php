@@ -52,25 +52,47 @@
                                         {{ $report->report_date->translatedFormat('d F Y') }}
                                     </td>
                                     <td class="py-3.5 px-6">
-                                        @if ($report->report_type === 'employee')
-                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">
+                                        @if ($report->report_type === 'both')
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
+                                                Karyawan &amp; Kantor
+                                            </span>
+                                        @elseif ($report->report_type === 'employee')
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 border border-indigo-200">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
                                                 Monitoring Karyawan
                                             </span>
                                         @else
-                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
                                                 Kondisi Kantor
                                             </span>
                                         @endif
                                     </td>
                                     <td class="py-3.5 px-6">
-                                        @if ($report->report_type === 'employee')
+                                        @if ($report->report_type === 'both')
+                                            <div>
+                                                <span class="font-medium text-slate-900">{{ $report->employee_name }}</span>
+                                                @php
+                                                    $empList = $report->getEmployeesData();
+                                                    $count = count($empList);
+                                                @endphp
+                                                @if ($count > 1)
+                                                    <span class="inline-block ml-1 text-[10px] font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700">
+                                                        {{ $count }} Karyawan
+                                                    </span>
+                                                @endif
+                                            </div>
+                                            <div class="mt-0.5">
+                                                <span class="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    + Kondisi Kantor
+                                                </span>
+                                            </div>
+                                        @elseif ($report->report_type === 'employee')
                                             <div class="font-medium text-slate-900">{{ $report->employee_name }}</div>
                                             @php
-                                                $data = is_array($report->monitoring_data) ? $report->monitoring_data : [];
-                                                $isMulti = isset($data[0]['categories']);
-                                                $count = $isMulti ? count($data) : 1;
+                                                $empList = $report->getEmployeesData();
+                                                $count = count($empList);
                                             @endphp
                                             @if ($count > 1)
                                                 <span class="inline-block mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700">

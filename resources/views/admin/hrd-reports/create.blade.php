@@ -5,7 +5,7 @@
                 <h2 class="font-bold text-xl text-slate-800 leading-tight">
                     {{ __('Buat Daily Report HRD') }}
                 </h2>
-                <p class="text-xs text-slate-500 mt-0.5">Isi formulir monitoring karyawan atau kondisi kantor.</p>
+                <p class="text-xs text-slate-500 mt-0.5">Isi formulir monitoring karyawan, kondisi kantor, atau keduanya sekaligus.</p>
             </div>
 
             <a href="{{ route('admin.hrd-reports.index') }}" class="px-3.5 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 transition">
@@ -45,13 +45,16 @@
                         </span>
                         <h2 class="text-2xl font-bold tracking-tight">Daily Report HRD</h2>
                         <p class="mt-2 text-sm text-indigo-100">
-                            Pilih jenis monitoring di bawah untuk membuka dan melengkapi formulir laporan.
+                            Centang jenis monitoring yang ingin dilaporkan. Anda dapat mengisi Monitoring Karyawan saja, Kondisi Kantor saja, atau mengisi keduanya sekaligus dalam satu laporan.
                         </p>
                     </div>
                 </div>
 
                 <form action="{{ route('admin.hrd-reports.store') }}" method="POST" class="p-6 sm:p-8 space-y-8" @submit="isSubmitting = true">
                     @csrf
+
+                    <!-- Hidden Input Report Type (Otomatis Sync) -->
+                    <input type="hidden" name="report_type" :value="reportType">
 
                     <!-- 1. TANGGAL LAPORAN (FIELD BERSAMA) -->
                     <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
@@ -78,33 +81,36 @@
 
                         <!-- SECTION A: MONITORING KARYAWAN (BAGIAN ATAS) -->
                         <div class="border-2 rounded-2xl transition-all duration-200 overflow-hidden shadow-sm"
-                             :class="reportType === 'employee' ? 'border-indigo-500 bg-white ring-1 ring-indigo-500' : 'border-slate-200 bg-slate-50/60 hover:border-slate-300'">
+                             :class="isEmployeeActive ? 'border-indigo-500 bg-white ring-1 ring-indigo-500' : 'border-slate-200 bg-slate-50/60'">
                             
-                            <!-- Header / Clickable Accordion Banner -->
-                            <div class="p-5 cursor-pointer flex items-center justify-between"
-                                 @click="reportType = 'employee'">
+                            <!-- Header / Section Activation Bar -->
+                            <div class="p-5 flex items-center justify-between gap-4">
                                 <div class="flex items-center gap-3.5">
                                     <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition"
-                                         :class="reportType === 'employee' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'">
+                                         :class="isEmployeeActive ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'">
                                         1
                                     </div>
                                     <div>
                                         <div class="flex items-center gap-2">
                                             <h3 class="text-base font-bold text-slate-900">Monitoring Karyawan</h3>
-                                            <span x-show="reportType === 'employee'" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-100 text-indigo-700">Aktif</span>
+                                            <span x-show="isEmployeeActive" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-100 text-indigo-700">Aktif</span>
+                                            <span x-show="!isEmployeeActive" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-200 text-slate-600">Tidak Disertakan</span>
                                         </div>
                                         <p class="text-xs text-slate-500 mt-0.5">Catat evaluasi, status tindak lanjut, dan detail catatan per kategori untuk satu atau beberapa karyawan.</p>
                                     </div>
                                 </div>
 
-                                <div class="flex items-center gap-2">
-                                    <input type="radio" name="report_type" value="employee" x-model="reportType"
-                                           class="text-indigo-600 focus:ring-indigo-500 h-4 w-4">
+                                <div class="flex items-center gap-2.5">
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" x-model="isEmployeeActive" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                        <span class="ml-2 text-xs font-semibold text-slate-700 hidden sm:inline" x-text="isEmployeeActive ? 'Sertakan' : 'Lewati'"></span>
+                                    </label>
                                 </div>
                             </div>
 
                             <!-- Form Konten Monitoring Karyawan (Expandable) -->
-                            <div x-show="reportType === 'employee'" x-cloak class="p-5 sm:p-6 border-t border-indigo-100 bg-white space-y-6">
+                            <div x-show="isEmployeeActive" x-cloak class="p-5 sm:p-6 border-t border-indigo-100 bg-white space-y-6">
                                 
                                 <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                                     <div>
@@ -148,12 +154,14 @@
                                                     <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
                                                         <input type="radio" :name="'employees[' + empIndex + '][input_mode]'" value="select"
                                                                x-model="emp.input_mode"
+                                                               :disabled="!isEmployeeActive"
                                                                class="text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5">
                                                         <span>Pilih dari Master Karyawan</span>
                                                     </label>
                                                     <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
                                                         <input type="radio" :name="'employees[' + empIndex + '][input_mode]'" value="manual"
                                                                x-model="emp.input_mode"
+                                                               :disabled="!isEmployeeActive"
                                                                class="text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5">
                                                         <span>Input Manual (Karyawan Belum Terdaftar)</span>
                                                     </label>
@@ -166,7 +174,7 @@
                                                     </label>
                                                     <select :name="'employees[' + empIndex + '][employee_id]'"
                                                             x-model="emp.employee_id"
-                                                            :disabled="reportType !== 'employee' || emp.input_mode !== 'select'"
+                                                            :disabled="!isEmployeeActive || emp.input_mode !== 'select'"
                                                             class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white">
                                                         <option value="">-- Pilih Karyawan Aktif --</option>
                                                         @foreach ($employees as $employee)
@@ -183,7 +191,7 @@
                                                     <input type="text"
                                                            :name="'employees[' + empIndex + '][manual_employee_name]'"
                                                            x-model="emp.manual_employee_name"
-                                                           :disabled="reportType !== 'employee' || emp.input_mode !== 'manual'"
+                                                           :disabled="!isEmployeeActive || emp.input_mode !== 'manual'"
                                                            placeholder="Ketik nama lengkap karyawan..."
                                                            class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white">
                                                 </div>
@@ -219,7 +227,7 @@
                                                                 <input type="hidden"
                                                                        :name="'employees[' + empIndex + '][categories][' + getSelectedCategoryIndex(emp, cat.key) + '][category]'"
                                                                        :value="cat.key"
-                                                                       :disabled="reportType !== 'employee' || !cat.selected">
+                                                                       :disabled="!isEmployeeActive || !cat.selected">
                                                                 
                                                                 <!-- A. Dropdown Status Tindak Lanjut HRD (Per Kategori) -->
                                                                 <div>
@@ -228,7 +236,7 @@
                                                                     </label>
                                                                     <select :name="'employees[' + empIndex + '][categories][' + getSelectedCategoryIndex(emp, cat.key) + '][follow_up_status]'"
                                                                             x-model="cat.follow_up_status"
-                                                                            :disabled="reportType !== 'employee' || !cat.selected"
+                                                                            :disabled="!isEmployeeActive || !cat.selected"
                                                                             class="w-full text-xs rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white font-medium">
                                                                         <option value="">-- Pilih Status Tindak Lanjut --</option>
                                                                         <option value="selesai">Selesai</option>
@@ -247,7 +255,7 @@
                                                                     <textarea :name="'employees[' + empIndex + '][categories][' + getSelectedCategoryIndex(emp, cat.key) + '][notes]'"
                                                                               rows="3"
                                                                               x-model="cat.notes"
-                                                                              :disabled="reportType !== 'employee' || !cat.selected"
+                                                                              :disabled="!isEmployeeActive || !cat.selected"
                                                                               placeholder="Ketik detail hasil monitoring untuk kategori ini..."
                                                                               class="w-full text-xs rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white leading-relaxed"></textarea>
                                                                 </div>
@@ -280,33 +288,36 @@
 
                         <!-- SECTION B: MONITORING KONDISI KANTOR (BAGIAN BAWAH) -->
                         <div class="border-2 rounded-2xl transition-all duration-200 overflow-hidden shadow-sm"
-                             :class="reportType === 'office' ? 'border-emerald-500 bg-white ring-1 ring-emerald-500' : 'border-slate-200 bg-slate-50/60 hover:border-slate-300'">
+                             :class="isOfficeActive ? 'border-emerald-500 bg-white ring-1 ring-emerald-500' : 'border-slate-200 bg-slate-50/60'">
                             
-                            <!-- Header / Clickable Accordion Banner -->
-                            <div class="p-5 cursor-pointer flex items-center justify-between"
-                                 @click="reportType = 'office'">
+                            <!-- Header / Section Activation Bar -->
+                            <div class="p-5 flex items-center justify-between gap-4">
                                 <div class="flex items-center gap-3.5">
                                     <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition"
-                                         :class="reportType === 'office' ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'">
+                                         :class="isOfficeActive ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'">
                                         2
                                     </div>
                                     <div>
                                         <div class="flex items-center gap-2">
                                             <h3 class="text-base font-bold text-slate-900">Monitoring Kondisi Kantor</h3>
-                                            <span x-show="reportType === 'office'" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700">Aktif</span>
+                                            <span x-show="isOfficeActive" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700">Aktif</span>
+                                            <span x-show="!isOfficeActive" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-200 text-slate-600">Tidak Disertakan</span>
                                         </div>
                                         <p class="text-xs text-slate-500 mt-0.5">Catat temuan kebersihan dan kerapian, fasilitas peralatan, serta keamanan/keselamatan kerja kantor.</p>
                                     </div>
                                 </div>
 
-                                <div class="flex items-center gap-2">
-                                    <input type="radio" name="report_type" value="office" x-model="reportType"
-                                           class="text-emerald-600 focus:ring-emerald-500 h-4 w-4">
+                                <div class="flex items-center gap-2.5">
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" x-model="isOfficeActive" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                        <span class="ml-2 text-xs font-semibold text-slate-700 hidden sm:inline" x-text="isOfficeActive ? 'Sertakan' : 'Lewati'"></span>
+                                    </label>
                                 </div>
                             </div>
 
                             <!-- Form Konten Monitoring Kondisi Kantor (Expandable) -->
-                            <div x-show="reportType === 'office'" x-cloak class="p-5 sm:p-6 border-t border-emerald-100 bg-white space-y-6">
+                            <div x-show="isOfficeActive" x-cloak class="p-5 sm:p-6 border-t border-emerald-100 bg-white space-y-6">
                                 
                                 <div class="border-b border-slate-100 pb-3">
                                     <h4 class="text-sm font-bold text-slate-800">Kategori Kondisi Kantor & Tindakan HRD</h4>
@@ -330,7 +341,7 @@
                                                 <input type="hidden"
                                                        :name="'office_items[' + getOfficeSelectedIndex(item.key) + '][category]'"
                                                        :value="item.key"
-                                                       :disabled="reportType !== 'office' || !item.selected">
+                                                       :disabled="!isOfficeActive || !item.selected">
 
                                                 <!-- Detail Temuan -->
                                                 <div>
@@ -340,7 +351,7 @@
                                                     <textarea :name="'office_items[' + getOfficeSelectedIndex(item.key) + '][finding]'"
                                                               rows="3"
                                                               x-model="item.finding"
-                                                              :disabled="reportType !== 'office' || !item.selected"
+                                                              :disabled="!isOfficeActive || !item.selected"
                                                               placeholder="Jelaskan temuan kondisi fasilitas, kebersihan, atau keamanan kantor..."
                                                               class="w-full text-xs rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white leading-relaxed"></textarea>
                                                 </div>
@@ -352,7 +363,7 @@
                                                     </label>
                                                     <select :name="'office_items[' + getOfficeSelectedIndex(item.key) + '][action]'"
                                                             x-model="item.action"
-                                                            :disabled="reportType !== 'office' || !item.selected"
+                                                            :disabled="!isOfficeActive || !item.selected"
                                                             class="w-full text-xs rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white font-medium">
                                                         <option value="">-- Pilih Tindakan HRD --</option>
                                                         <option value="tidak_perlu_tindakan">Tidak perlu tindakan</option>
@@ -371,7 +382,7 @@
                                                     <textarea :name="'office_items[' + getOfficeSelectedIndex(item.key) + '][action_notes]'"
                                                               rows="2"
                                                               x-model="item.actionNotes"
-                                                              :disabled="reportType !== 'office' || !item.selected"
+                                                              :disabled="!isOfficeActive || !item.selected"
                                                               placeholder="Jelaskan rincian tindakan atau tindak lanjut yang dilakukan HRD..."
                                                               class="w-full text-xs rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white leading-relaxed"></textarea>
                                                 </div>
@@ -389,7 +400,7 @@
                     <!-- 3. TOMBOL SUBMIT -->
                     <div class="flex justify-end pt-4 border-t border-slate-200">
                         <button type="submit"
-                                :disabled="isSubmitting"
+                                :disabled="isSubmitting || (!isEmployeeActive && !isOfficeActive)"
                                 class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold shadow hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition disabled:opacity-50 disabled:cursor-not-allowed">
                             <svg x-show="isSubmitting" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -406,9 +417,26 @@
 
     <script>
         function hrdReportForm() {
+            @php
+                $initialReportType = old('report_type', 'employee');
+                $initEmployeeActive = ($initialReportType === 'employee' || $initialReportType === 'both' || old('employees') !== null);
+                $initOfficeActive = ($initialReportType === 'office' || $initialReportType === 'both' || old('office_items') !== null);
+                if (!$initEmployeeActive && !$initOfficeActive) {
+                    $initEmployeeActive = true;
+                }
+            @endphp
+
             return {
-                reportType: '{{ old('report_type', 'employee') }}',
+                isEmployeeActive: {{ $initEmployeeActive ? 'true' : 'false' }},
+                isOfficeActive: {{ $initOfficeActive ? 'true' : 'false' }},
                 isSubmitting: false,
+
+                get reportType() {
+                    if (this.isEmployeeActive && this.isOfficeActive) return 'both';
+                    if (this.isEmployeeActive) return 'employee';
+                    if (this.isOfficeActive) return 'office';
+                    return '';
+                },
 
                 // Template master 9 kategori karyawan
                 masterCategories: [

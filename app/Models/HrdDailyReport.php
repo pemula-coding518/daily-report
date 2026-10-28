@@ -44,13 +44,98 @@ class HrdDailyReport extends Model
     }
 
     /**
-     * Relasi ke karyawan yang dimonitor (jika report_type = 'employee').
+     * Relasi ke karyawan yang dimonitor (jika ada relasi ke tabel Employee).
      *
      * @return BelongsTo<Employee, $this>
      */
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    /**
+     * Mengecek apakah laporan ini mencakup data Monitoring Karyawan.
+     */
+    public function hasEmployeeMonitoring(): bool
+    {
+        if ($this->report_type === 'employee' || $this->report_type === 'both') {
+            return true;
+        }
+
+        $data = is_array($this->monitoring_data) ? $this->monitoring_data : [];
+
+        return ! empty($data['employees']);
+    }
+
+    /**
+     * Mengecek apakah laporan ini mencakup data Monitoring Kondisi Kantor.
+     */
+    public function hasOfficeMonitoring(): bool
+    {
+        if ($this->report_type === 'office' || $this->report_type === 'both') {
+            return true;
+        }
+
+        $data = is_array($this->monitoring_data) ? $this->monitoring_data : [];
+
+        return ! empty($data['office_items']);
+    }
+
+    /**
+     * Mendapatkan daftar entri karyawan dari monitoring_data (dengan backward compatibility).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getEmployeesData(): array
+    {
+        $data = is_array($this->monitoring_data) ? $this->monitoring_data : [];
+
+        // Format gabungan: ['employees' => [...], 'office_items' => [...]]
+        if (isset($data['employees']) && is_array($data['employees'])) {
+            return $data['employees'];
+        }
+
+        // Format employee-only
+        if ($this->report_type === 'employee') {
+            // Jika multi-employee format (array of employee objects)
+            if (isset($data[0]['categories']) || isset($data[0]['employee_name'])) {
+                return $data;
+            }
+
+            // Jika legacy flat format: array of category objects untuk satu karyawan
+            return [
+                [
+                    'employee_id' => $this->employee_id,
+                    'employee_name' => $this->employee_name,
+                    'input_mode' => $this->employee_id ? 'select' : 'manual',
+                    'categories' => $data,
+                ],
+            ];
+        }
+
+        return [];
+    }
+
+    /**
+     * Mendapatkan daftar item kondisi kantor dari monitoring_data (dengan backward compatibility).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getOfficeData(): array
+    {
+        $data = is_array($this->monitoring_data) ? $this->monitoring_data : [];
+
+        // Format gabungan: ['employees' => [...], 'office_items' => [...]]
+        if (isset($data['office_items']) && is_array($data['office_items'])) {
+            return $data['office_items'];
+        }
+
+        // Format office-only: array of office item objects
+        if ($this->report_type === 'office') {
+            return $data;
+        }
+
+        return [];
     }
 
     /**

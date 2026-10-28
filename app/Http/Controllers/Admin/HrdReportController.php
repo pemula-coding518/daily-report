@@ -47,20 +47,22 @@ class HrdReportController extends Controller
         $user = Auth::guard('admin_hrd')->user();
 
         return DB::transaction(function () use ($validated, $user) {
-            $data = [
-                'admin_hrd_user_id' => $user->id,
-                'creator_name_snapshot' => $user->name,
-                'report_date' => $validated['report_date'],
-                'report_type' => $validated['report_type'],
-                'employee_id' => null,
-                'employee_name' => null,
-                'monitoring_data' => [],
-            ];
+            $hasEmployees = ! empty($validated['employees']);
+            $hasOffice = ! empty($validated['office_items']);
 
-            if ($validated['report_type'] === 'employee') {
-                $formattedEmployees = [];
-                $namesList = [];
+            // Tentukan report_type secara eksplisit berdasarkan isi bagian yang dikirim
+            $reportType = 'both';
+            if ($hasEmployees && ! $hasOffice) {
+                $reportType = 'employee';
+            } elseif (! $hasEmployees && $hasOffice) {
+                $reportType = 'office';
+            }
 
+            $formattedEmployees = [];
+            $namesList = [];
+            $singleEmployeeId = null;
+
+            if ($hasEmployees) {
                 foreach ($validated['employees'] as $empData) {
                     if ($empData['input_mode'] === 'select') {
                         $employee = Employee::findOrFail($empData['employee_id']);
@@ -90,18 +92,40 @@ class HrdReportController extends Controller
                     ];
                 }
 
-                $data['employee_id'] = (count($formattedEmployees) === 1) ? $formattedEmployees[0]['employee_id'] : null;
-                $data['employee_name'] = implode(', ', $namesList);
-                $data['monitoring_data'] = $formattedEmployees;
+                if (count($formattedEmployees) === 1) {
+                    $singleEmployeeId = $formattedEmployees[0]['employee_id'];
+                }
             }
 
-            if ($validated['report_type'] === 'office') {
-                $data['employee_id'] = null;
-                $data['employee_name'] = null;
-                $data['monitoring_data'] = $validated['office_items'];
+            $officeItems = $hasOffice ? $validated['office_items'] : [];
+
+            // Susun monitoring_data, employee_id, dan employee_name snapshot
+            if ($reportType === 'both') {
+                $monitoringData = [
+                    'employees' => $formattedEmployees,
+                    'office_items' => $officeItems,
+                ];
+                $employeeNameSnapshot = implode(', ', $namesList);
+                $employeeId = $singleEmployeeId;
+            } elseif ($reportType === 'employee') {
+                $monitoringData = $formattedEmployees;
+                $employeeNameSnapshot = implode(', ', $namesList);
+                $employeeId = $singleEmployeeId;
+            } else {
+                $monitoringData = $officeItems;
+                $employeeNameSnapshot = null;
+                $employeeId = null;
             }
 
-            $report = HrdDailyReport::create($data);
+            $report = HrdDailyReport::create([
+                'admin_hrd_user_id' => $user->id,
+                'creator_name_snapshot' => $user->name,
+                'report_date' => $validated['report_date'],
+                'report_type' => $reportType,
+                'employee_id' => $employeeId,
+                'employee_name' => $employeeNameSnapshot,
+                'monitoring_data' => $monitoringData,
+            ]);
 
             return redirect()->route('admin.hrd-reports.show', $report)
                 ->with('success', 'Laporan Daily Report HRD berhasil disimpan.');

@@ -605,29 +605,15 @@ class HrdDailyReportTest extends TestCase
     }
 
     /**
-     * 15. Isolasi payload antara monitoring karyawan dan kantor.
+     * 15. Laporan kantor tunggal menyimpan nilai null pada data karyawan.
      */
-    public function test_payload_isolation_between_employee_and_office(): void
+    public function test_office_only_report_stores_null_for_employee_data(): void
     {
         $this->actingAs($this->hrd, 'admin_hrd');
 
-        // Simpan office tapi coba selipkan data employee
         $this->post(route('admin.hrd-reports.store'), [
             'report_date' => '2026-10-28',
             'report_type' => 'office',
-            'employees' => [
-                [
-                    'input_mode' => 'select',
-                    'employee_id' => $this->activeEmployee->id,
-                    'categories' => [
-                        [
-                            'category' => 'kedisiplinan_karyawan',
-                            'follow_up_status' => 'selesai',
-                            'notes' => 'catatan',
-                        ],
-                    ],
-                ],
-            ],
             'office_items' => [
                 [
                     'category' => 'kebersihan_kerapian',
@@ -639,8 +625,10 @@ class HrdDailyReportTest extends TestCase
         ]);
 
         $officeReport = HrdDailyReport::where('report_type', 'office')->first();
+        $this->assertNotNull($officeReport);
         $this->assertNull($officeReport->employee_id);
         $this->assertNull($officeReport->employee_name);
+        $this->assertEquals('office', $officeReport->report_type);
     }
 
     /**
@@ -796,5 +784,159 @@ class HrdDailyReportTest extends TestCase
         $showLegacyRes->assertStatus(200);
         $showLegacyRes->assertSee('Budi Santoso');
         $showLegacyRes->assertSee('Catatan legacy report format lama.');
+    }
+
+    /**
+     * 18. Laporan gabungan (both) menyimpan data karyawan dan kondisi kantor sekaligus.
+     */
+    public function test_combined_report_stores_both_employee_and_office_monitoring(): void
+    {
+        $this->actingAs($this->hrd, 'admin_hrd');
+
+        $payload = [
+            'report_date' => '2026-10-28',
+            'report_type' => 'both',
+            'employees' => [
+                [
+                    'input_mode' => 'select',
+                    'employee_id' => $this->activeEmployee->id,
+                    'categories' => [
+                        [
+                            'category' => 'kedisiplinan_karyawan',
+                            'follow_up_status' => 'selesai',
+                            'notes' => 'Tepat waktu mengikuti briefing pagi.',
+                        ],
+                    ],
+                ],
+                [
+                    'input_mode' => 'manual',
+                    'manual_employee_name' => 'Fajar Magang',
+                    'categories' => [
+                        [
+                            'category' => 'kerja_sama',
+                            'follow_up_status' => 'dalam_proses',
+                            'notes' => 'Membantu setting printer kantor.',
+                        ],
+                    ],
+                ],
+            ],
+            'office_items' => [
+                [
+                    'category' => 'fasilitas_peralatan',
+                    'finding' => 'AC ruang meeting 1 kurang dingin.',
+                    'action' => 'mengajukan_perbaikan',
+                    'action_notes' => 'Segera hubungi teknisi pendingin ruangan.',
+                ],
+                [
+                    'category' => 'kebersihan_kerapian',
+                    'finding' => 'Pantry bersih dan tertata rapi.',
+                    'action' => 'tidak_perlu_tindakan',
+                    'action_notes' => 'Kondisi pantry sangat baik.',
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('admin.hrd-reports.store'), $payload);
+        $report = HrdDailyReport::latest('id')->first();
+        $this->assertNotNull($report);
+        $response->assertRedirect(route('admin.hrd-reports.show', $report));
+
+        // Verifikasi database record
+        $this->assertEquals('both', $report->report_type);
+        $this->assertEquals('Budi Santoso, Fajar Magang', $report->employee_name);
+        $this->assertTrue($report->hasEmployeeMonitoring());
+        $this->assertTrue($report->hasOfficeMonitoring());
+
+        // Verifikasi struktur data monitoring_data
+        $this->assertIsArray($report->monitoring_data);
+        $this->assertArrayHasKey('employees', $report->monitoring_data);
+        $this->assertArrayHasKey('office_items', $report->monitoring_data);
+        $this->assertCount(2, $report->monitoring_data['employees']);
+        $this->assertCount(2, $report->monitoring_data['office_items']);
+
+        // Verifikasi helper method
+        $employeesData = $report->getEmployeesData();
+        $this->assertCount(2, $employeesData);
+        $this->assertEquals('Budi Santoso', $employeesData[0]['employee_name']);
+        $this->assertEquals('Fajar Magang', $employeesData[1]['employee_name']);
+
+        $officeData = $report->getOfficeData();
+        $this->assertCount(2, $officeData);
+        $this->assertEquals('fasilitas_peralatan', $officeData[0]['category']);
+        $this->assertEquals('mengajukan_perbaikan', $officeData[0]['action']);
+
+        // Verifikasi halaman Show menampilkan kedua bagian secara lengkap
+        $showResponse = $this->get(route('admin.hrd-reports.show', $report));
+        $showResponse->assertStatus(200);
+        $showResponse->assertSee('Monitoring Karyawan &amp; Kondisi Kantor', false);
+        $showResponse->assertSee('Hasil Monitoring Karyawan');
+        $showResponse->assertSee('Budi Santoso');
+        $showResponse->assertSee('Tepat waktu mengikuti briefing pagi.');
+        $showResponse->assertSee('Fajar Magang');
+        $showResponse->assertSee('Membantu setting printer kantor.');
+        $showResponse->assertSee('Hasil Monitoring Kondisi Kantor');
+        $showResponse->assertSee('AC ruang meeting 1 kurang dingin.');
+        $showResponse->assertSee('Segera hubungi teknisi pendingin ruangan.');
+        $showResponse->assertSee('Pantry bersih dan tertata rapi.');
+
+        // Verifikasi halaman Index menampilkan badge gabungan
+        $indexResponse = $this->get(route('admin.hrd-reports.index'));
+        $indexResponse->assertStatus(200);
+        $indexResponse->assertSee('Karyawan &amp; Kantor', false);
+        $indexResponse->assertSee('+ Kondisi Kantor');
+    }
+
+    /**
+     * 19. Validasi gagal jika kedua bagian monitoring (karyawan dan kantor) sama-sama kosong.
+     */
+    public function test_validation_fails_when_both_sections_are_empty(): void
+    {
+        $this->actingAs($this->hrd, 'admin_hrd');
+
+        $response = $this->post(route('admin.hrd-reports.store'), [
+            'report_date' => '2026-10-28',
+            'report_type' => 'both',
+            'employees' => [],
+            'office_items' => [],
+        ]);
+
+        $response->assertSessionHasErrors(['report_type']);
+    }
+
+    /**
+     * 20. Validasi gagal jika laporan gabungan memiliki kesalahan pada salah satu bagian.
+     */
+    public function test_combined_report_fails_validation_if_either_section_has_errors(): void
+    {
+        $this->actingAs($this->hrd, 'admin_hrd');
+
+        // Bagian karyawan valid, tetapi bagian kantor ada tindakan yang tidak valid
+        $response = $this->post(route('admin.hrd-reports.store'), [
+            'report_date' => '2026-10-28',
+            'report_type' => 'both',
+            'employees' => [
+                [
+                    'input_mode' => 'select',
+                    'employee_id' => $this->activeEmployee->id,
+                    'categories' => [
+                        [
+                            'category' => 'kedisiplinan_karyawan',
+                            'follow_up_status' => 'selesai',
+                            'notes' => 'Catatan valid.',
+                        ],
+                    ],
+                ],
+            ],
+            'office_items' => [
+                [
+                    'category' => 'kebersihan_kerapian',
+                    'finding' => 'Kotor.',
+                    'action' => 'tindakan_ngawur',
+                    'action_notes' => 'Catatan.',
+                ],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors('office_items.0.action');
     }
 }
