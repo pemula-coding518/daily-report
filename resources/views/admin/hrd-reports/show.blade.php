@@ -45,7 +45,7 @@
                         @if ($hrdReport->report_type === 'employee')
                             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800">
                                 <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
-                                Karyawan: {{ $hrdReport->employee_name }}
+                                Monitoring Karyawan
                             </span>
                         @else
                             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
@@ -68,7 +68,7 @@
                     </div>
 
                     <div>
-                        <span class="text-slate-400 block font-semibold">Target Subjek</span>
+                        <span class="text-slate-400 block font-semibold">Subjek Laporan</span>
                         <span class="font-medium text-slate-700 text-sm">
                             {{ $hrdReport->report_type === 'employee' ? $hrdReport->employee_name : 'Kondisi Kantor' }}
                         </span>
@@ -83,19 +83,7 @@
 
             <!-- 2. Konten Monitoring -->
             <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
-                <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
-                    <h4 class="text-base font-bold text-slate-900">
-                        @if ($hrdReport->report_type === 'employee')
-                            Hasil Monitoring Karyawan ({{ $hrdReport->employee_name }})
-                        @else
-                            Hasil Monitoring Kondisi Kantor
-                        @endif
-                    </h4>
-                    <span class="text-xs text-slate-400">
-                        Total Item: {{ is_array($hrdReport->monitoring_data) ? count($hrdReport->monitoring_data) : 0 }}
-                    </span>
-                </div>
-
+                
                 @php
                     $items = is_array($hrdReport->monitoring_data) ? $hrdReport->monitoring_data : [];
 
@@ -134,32 +122,126 @@
                     ];
                 @endphp
 
-                <!-- Tampilan Monitoring Karyawan -->
+                <!-- TAMPILAN MONITORING KARYAWAN -->
                 @if ($hrdReport->report_type === 'employee')
-                    <div class="space-y-4">
-                        @forelse ($items as $item)
+                    @php
+                        // Cek apakah format baru (array of employees) atau format lama (array of categories)
+                        $isMultiEmployeeFormat = isset($items[0]['categories']) || isset($items[0]['employee_name']);
+                        
+                        $employeeList = $isMultiEmployeeFormat ? $items : [
+                            [
+                                'employee_id' => $hrdReport->employee_id,
+                                'employee_name' => $hrdReport->employee_name,
+                                'follow_up_status' => null,
+                                'categories' => $items,
+                            ]
+                        ];
+                    @endphp
+
+                    <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+                        <h4 class="text-base font-bold text-slate-900">
+                            Hasil Monitoring Karyawan
+                        </h4>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600">
+                            Total: {{ count($employeeList) }} Karyawan
+                        </span>
+                    </div>
+
+                    <div class="space-y-6">
+                        @forelse ($employeeList as $empIdx => $empEntry)
                             @php
-                                $catKey = $item['category'] ?? '';
-                                $label = $employeeCategoryLabels[$catKey] ?? ucwords(str_replace('_', ' ', $catKey));
-                                $notes = $item['notes'] ?? '-';
+                                $empName = $empEntry['employee_name'] ?? 'Karyawan #' . ($empIdx + 1);
+                                $empCategories = $empEntry['categories'] ?? [];
+                                $fallbackStatus = $empEntry['follow_up_status'] ?? null;
                             @endphp
-                            <div class="p-5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
-                                    <h5 class="text-sm font-bold text-slate-900">{{ $label }}</h5>
+
+                            <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                                <!-- Header Entri Karyawan -->
+                                <div class="p-4 sm:p-5 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
+                                            {{ $empIdx + 1 }}
+                                        </div>
+                                        <div>
+                                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Nama Karyawan</span>
+                                            <h5 class="text-base font-bold text-slate-900 leading-tight">{{ $empName }}</h5>
+                                        </div>
+                                    </div>
+
+                                    @if ($fallbackStatus)
+                                        <!-- Fallback badge untuk laporan versi sebelumnya -->
+                                        <div>
+                                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold {{ \App\Models\HrdDailyReport::getFollowUpStatusBadgeColor($fallbackStatus) }}">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+                                                Status: {{ \App\Models\HrdDailyReport::getFollowUpStatusLabel($fallbackStatus) }}
+                                            </span>
+                                        </div>
+                                    @endif
                                 </div>
-                                <div class="text-xs text-slate-700 pl-4 whitespace-pre-line leading-relaxed">
-                                    {{ $notes }}
+
+                                <!-- Detail Kategori Monitoring untuk Karyawan ini -->
+                                <div class="p-5 sm:p-6 space-y-4">
+                                    <span class="block text-xs font-bold uppercase tracking-wider text-slate-400">Kategori, Status Tindak Lanjut, & Detail Catatan:</span>
+                                    
+                                    <div class="space-y-4">
+                                        @forelse ($empCategories as $catItem)
+                                            @php
+                                                $catKey = $catItem['category'] ?? '';
+                                                $label = $employeeCategoryLabels[$catKey] ?? ucwords(str_replace('_', ' ', $catKey));
+                                                $notes = $catItem['notes'] ?? '-';
+                                                $catStatus = $catItem['follow_up_status'] ?? $fallbackStatus;
+                                                $catStatusLabel = \App\Models\HrdDailyReport::getFollowUpStatusLabel($catStatus);
+                                                $catStatusBadge = \App\Models\HrdDailyReport::getFollowUpStatusBadgeColor($catStatus);
+                                            @endphp
+                                            <div class="p-4 sm:p-5 rounded-xl border border-slate-200 bg-slate-50/60 space-y-3">
+                                                <!-- Baris Header Kategori: Judul Kategori & Badge Status Tindak Lanjut HRD -->
+                                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200/70">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                                                        <h6 class="text-sm font-bold text-slate-900">{{ $label }}</h6>
+                                                    </div>
+
+                                                    @if ($catStatus)
+                                                        <div>
+                                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold {{ $catStatusBadge }}">
+                                                                <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+                                                                Tindak Lanjut: {{ $catStatusLabel }}
+                                                            </span>
+                                                        </div>
+                                                    @endif
+                                                </div>
+
+                                                <!-- Kolom Detail Catatan Manual -->
+                                                <div class="space-y-1">
+                                                    <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Detail Catatan:</span>
+                                                    <div class="text-xs text-slate-800 pl-2 whitespace-pre-line leading-relaxed">
+                                                        {{ $notes }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @empty
+                                            <p class="text-xs text-slate-400 italic">Tidak ada kategori yang dicatat.</p>
+                                        @endforelse
+                                    </div>
                                 </div>
                             </div>
                         @empty
-                            <p class="text-xs text-slate-400 italic">Tidak ada catatan monitoring.</p>
+                            <p class="text-xs text-slate-400 italic">Tidak ada catatan monitoring karyawan.</p>
                         @endforelse
                     </div>
                 @endif
 
-                <!-- Tampilan Monitoring Kondisi Kantor -->
+                <!-- TAMPILAN MONITORING KONDISI KANTOR -->
                 @if ($hrdReport->report_type === 'office')
+                    <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+                        <h4 class="text-base font-bold text-slate-900">
+                            Hasil Monitoring Kondisi Kantor
+                        </h4>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600">
+                            Total: {{ count($items) }}
+                        </span>
+                    </div>
+
                     <div class="space-y-5">
                         @forelse ($items as $item)
                             @php

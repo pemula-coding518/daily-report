@@ -22,6 +22,8 @@ class HrdDailyReportTest extends TestCase
 
     private Employee $activeEmployee;
 
+    private Employee $activeEmployee2;
+
     private Employee $inactiveEmployee;
 
     protected function setUp(): void
@@ -52,6 +54,12 @@ class HrdDailyReportTest extends TestCase
         $this->activeEmployee = Employee::create([
             'division_id' => $this->division->id,
             'name' => 'Budi Santoso',
+            'is_active' => true,
+        ]);
+
+        $this->activeEmployee2 = Employee::create([
+            'division_id' => $this->division->id,
+            'name' => 'Siti Aminah',
             'is_active' => true,
         ]);
 
@@ -93,14 +101,19 @@ class HrdDailyReportTest extends TestCase
         $createRes->assertSee('Buat Daily Report HRD');
 
         $payload = [
-            'report_date' => '2026-10-27',
+            'report_date' => '2026-10-28',
             'report_type' => 'employee',
-            'input_mode' => 'select',
-            'employee_id' => $this->activeEmployee->id,
-            'categories' => [
+            'employees' => [
                 [
-                    'category' => 'kedisiplinan_karyawan',
-                    'notes' => 'Datang tepat waktu dan memimpin doa pagi.',
+                    'input_mode' => 'select',
+                    'employee_id' => $this->activeEmployee->id,
+                    'categories' => [
+                        [
+                            'category' => 'kedisiplinan_karyawan',
+                            'follow_up_status' => 'selesai',
+                            'notes' => 'Datang tepat waktu dan memimpin briefing.',
+                        ],
+                    ],
                 ],
             ],
         ];
@@ -114,10 +127,11 @@ class HrdDailyReportTest extends TestCase
         $showRes->assertStatus(200);
         $showRes->assertSee('Budi Santoso');
         $showRes->assertSee('Kedisiplinan Karyawan');
+        $showRes->assertSee('Selesai');
     }
 
     /**
-     * 3. Admin dapat membuka halaman, menyimpan laporan, dan melihat detail.
+     * 3. Admin dapat membuka halaman, menyimpan laporan kantor, dan melihat detail.
      */
     public function test_admin_can_view_index_create_report_and_view_show(): void
     {
@@ -127,7 +141,7 @@ class HrdDailyReportTest extends TestCase
         $indexRes->assertStatus(200);
 
         $payload = [
-            'report_date' => '2026-10-27',
+            'report_date' => '2026-10-28',
             'report_type' => 'office',
             'office_items' => [
                 [
@@ -157,14 +171,19 @@ class HrdDailyReportTest extends TestCase
         $this->actingAs($this->hrd, 'admin_hrd');
 
         $this->post(route('admin.hrd-reports.store'), [
-            'report_date' => '2026-10-27',
+            'report_date' => '2026-10-28',
             'report_type' => 'employee',
-            'input_mode' => 'select',
-            'employee_id' => $this->activeEmployee->id,
-            'categories' => [
+            'employees' => [
                 [
-                    'category' => 'sikap_perilaku',
-                    'notes' => 'Sangat kooperatif dengan rekan kerja.',
+                    'input_mode' => 'select',
+                    'employee_id' => $this->activeEmployee->id,
+                    'categories' => [
+                        [
+                            'category' => 'sikap_perilaku',
+                            'follow_up_status' => 'dalam_proses',
+                            'notes' => 'Sangat kooperatif dengan rekan kerja.',
+                        ],
+                    ],
                 ],
             ],
         ]);
@@ -185,14 +204,19 @@ class HrdDailyReportTest extends TestCase
         $this->actingAs($this->hrd, 'admin_hrd');
 
         $this->post(route('admin.hrd-reports.store'), [
-            'report_date' => '2026-10-27',
+            'report_date' => '2026-10-28',
             'report_type' => 'employee',
-            'input_mode' => 'manual',
-            'manual_employee_name' => 'Rian Magang IT',
-            'categories' => [
+            'employees' => [
                 [
-                    'category' => 'aktivitas_tanggung_jawab',
-                    'notes' => 'Menyelesaikan modul pengujian dasar.',
+                    'input_mode' => 'manual',
+                    'manual_employee_name' => 'Rian Magang IT',
+                    'categories' => [
+                        [
+                            'category' => 'aktivitas_tanggung_jawab',
+                            'follow_up_status' => 'menunggu_pihak_terkait',
+                            'notes' => 'Menyelesaikan modul pengujian dasar.',
+                        ],
+                    ],
                 ],
             ],
         ]);
@@ -213,44 +237,304 @@ class HrdDailyReportTest extends TestCase
 
         // Karyawan nonaktif
         $responseInactive = $this->post(route('admin.hrd-reports.store'), [
-            'report_date' => '2026-10-27',
+            'report_date' => '2026-10-28',
             'report_type' => 'employee',
-            'input_mode' => 'select',
-            'employee_id' => $this->inactiveEmployee->id,
-            'categories' => [
+            'employees' => [
                 [
-                    'category' => 'kedisiplinan_karyawan',
-                    'notes' => 'Catatan tes.',
+                    'input_mode' => 'select',
+                    'employee_id' => $this->inactiveEmployee->id,
+                    'categories' => [
+                        [
+                            'category' => 'kedisiplinan_karyawan',
+                            'follow_up_status' => 'selesai',
+                            'notes' => 'Catatan tes.',
+                        ],
+                    ],
                 ],
             ],
         ]);
-        $responseInactive->assertSessionHasErrors('employee_id');
+        $responseInactive->assertSessionHasErrors('employees.0.employee_id');
 
         // ID tidak valid
         $responseInvalid = $this->post(route('admin.hrd-reports.store'), [
-            'report_date' => '2026-10-27',
+            'report_date' => '2026-10-28',
             'report_type' => 'employee',
-            'input_mode' => 'select',
-            'employee_id' => 999999,
-            'categories' => [
+            'employees' => [
                 [
-                    'category' => 'kedisiplinan_karyawan',
-                    'notes' => 'Catatan tes.',
+                    'input_mode' => 'select',
+                    'employee_id' => 999999,
+                    'categories' => [
+                        [
+                            'category' => 'kedisiplinan_karyawan',
+                            'follow_up_status' => 'selesai',
+                            'notes' => 'Catatan tes.',
+                        ],
+                    ],
                 ],
             ],
         ]);
-        $responseInvalid->assertSessionHasErrors('employee_id');
+        $responseInvalid->assertSessionHasErrors('employees.0.employee_id');
     }
 
     /**
-     * 7. Monitoring kantor dapat menyimpan beberapa kategori dan tindakan.
+     * 7. Satu laporan dapat menyimpan beberapa karyawan dan setiap kategori memiliki status tindak lanjut masing-masing.
+     */
+    public function test_multiple_employees_with_independent_status_per_category(): void
+    {
+        $this->actingAs($this->hrd, 'admin_hrd');
+
+        $payload = [
+            'report_date' => '2026-10-28',
+            'report_type' => 'employee',
+            'employees' => [
+                [
+                    'input_mode' => 'select',
+                    'employee_id' => $this->activeEmployee->id,
+                    'categories' => [
+                        [
+                            'category' => 'kedisiplinan_karyawan',
+                            'follow_up_status' => 'dalam_proses',
+                            'notes' => 'Terlambat 10 menit.',
+                        ],
+                        [
+                            'category' => 'komunikasi_koordinasi',
+                            'follow_up_status' => 'selesai',
+                            'notes' => 'Briefing internal berjalan lancar.',
+                        ],
+                    ],
+                ],
+                [
+                    'input_mode' => 'select',
+                    'employee_id' => $this->activeEmployee2->id,
+                    'categories' => [
+                        [
+                            'category' => 'sikap_perilaku',
+                            'follow_up_status' => 'perlu_monitoring_lanjutan',
+                            'notes' => 'Perlu bimbingan interaksi dengan klien.',
+                        ],
+                    ],
+                ],
+                [
+                    'input_mode' => 'manual',
+                    'manual_employee_name' => 'Ahmad Teknisi Luar',
+                    'categories' => [
+                        [
+                            'category' => 'hal_positif_apresiasi',
+                            'follow_up_status' => 'memerlukan_keputusan_direktur',
+                            'notes' => 'Proposal bonus penugasan khusus.',
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('admin.hrd-reports.store'), $payload);
+        $report = HrdDailyReport::latest('id')->first();
+        $this->assertNotNull($report);
+        $response->assertRedirect(route('admin.hrd-reports.show', $report));
+
+        // Data 3 karyawan tersimpan
+        $this->assertCount(3, $report->monitoring_data);
+        
+        // Karyawan 1 memiliki 2 kategori dengan status berbeda
+        $emp1Categories = $report->monitoring_data[0]['categories'];
+        $this->assertCount(2, $emp1Categories);
+        $this->assertEquals('kedisiplinan_karyawan', $emp1Categories[0]['category']);
+        $this->assertEquals('dalam_proses', $emp1Categories[0]['follow_up_status']);
+        $this->assertEquals('Terlambat 10 menit.', $emp1Categories[0]['notes']);
+
+        $this->assertEquals('komunikasi_koordinasi', $emp1Categories[1]['category']);
+        $this->assertEquals('selesai', $emp1Categories[1]['follow_up_status']);
+        $this->assertEquals('Briefing internal berjalan lancar.', $emp1Categories[1]['notes']);
+
+        // Karyawan 2
+        $emp2Categories = $report->monitoring_data[1]['categories'];
+        $this->assertCount(1, $emp2Categories);
+        $this->assertEquals('perlu_monitoring_lanjutan', $emp2Categories[0]['follow_up_status']);
+
+        // Karyawan 3
+        $emp3Categories = $report->monitoring_data[2]['categories'];
+        $this->assertCount(1, $emp3Categories);
+        $this->assertEquals('memerlukan_keputusan_direktur', $emp3Categories[0]['follow_up_status']);
+    }
+
+    /**
+     * 8. Kelima status tindak lanjut HRD valid di dalam kategori.
+     */
+    public function test_all_five_follow_up_statuses_are_valid_in_category(): void
+    {
+        $this->actingAs($this->hrd, 'admin_hrd');
+
+        $statuses = [
+            'selesai',
+            'dalam_proses',
+            'menunggu_pihak_terkait',
+            'perlu_monitoring_lanjutan',
+            'memerlukan_keputusan_direktur',
+        ];
+
+        foreach ($statuses as $status) {
+            $response = $this->post(route('admin.hrd-reports.store'), [
+                'report_date' => '2026-10-28',
+                'report_type' => 'employee',
+                'employees' => [
+                    [
+                        'input_mode' => 'manual',
+                        'manual_employee_name' => 'Staf Status ' . $status,
+                        'categories' => [
+                            [
+                                'category' => 'sikap_perilaku',
+                                'follow_up_status' => $status,
+                                'notes' => 'Catatan status ' . $status,
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+            $response->assertSessionHasNoErrors();
+        }
+
+        $this->assertEquals(5, HrdDailyReport::count());
+    }
+
+    /**
+     * 9. Status tindak lanjut tidak valid di dalam kategori ditolak.
+     */
+    public function test_invalid_follow_up_status_in_category_is_rejected(): void
+    {
+        $this->actingAs($this->hrd, 'admin_hrd');
+
+        $response = $this->post(route('admin.hrd-reports.store'), [
+            'report_date' => '2026-10-28',
+            'report_type' => 'employee',
+            'employees' => [
+                [
+                    'input_mode' => 'select',
+                    'employee_id' => $this->activeEmployee->id,
+                    'categories' => [
+                        [
+                            'category' => 'kedisiplinan_karyawan',
+                            'follow_up_status' => 'status_palsu',
+                            'notes' => 'Catatan.',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors('employees.0.categories.0.follow_up_status');
+    }
+
+    /**
+     * 10. Status tindak lanjut kosong di dalam kategori ditolak.
+     */
+    public function test_missing_follow_up_status_in_category_is_rejected(): void
+    {
+        $this->actingAs($this->hrd, 'admin_hrd');
+
+        $response = $this->post(route('admin.hrd-reports.store'), [
+            'report_date' => '2026-10-28',
+            'report_type' => 'employee',
+            'employees' => [
+                [
+                    'input_mode' => 'select',
+                    'employee_id' => $this->activeEmployee->id,
+                    'categories' => [
+                        [
+                            'category' => 'kedisiplinan_karyawan',
+                            'follow_up_status' => '',
+                            'notes' => 'Catatan.',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors('employees.0.categories.0.follow_up_status');
+    }
+
+    /**
+     * 11. Kategori duplikat pada karyawan yang sama ditolak.
+     */
+    public function test_duplicate_categories_for_same_employee_are_rejected(): void
+    {
+        $this->actingAs($this->hrd, 'admin_hrd');
+
+        $response = $this->post(route('admin.hrd-reports.store'), [
+            'report_date' => '2026-10-28',
+            'report_type' => 'employee',
+            'employees' => [
+                [
+                    'input_mode' => 'select',
+                    'employee_id' => $this->activeEmployee->id,
+                    'categories' => [
+                        [
+                            'category' => 'kedisiplinan_karyawan',
+                            'follow_up_status' => 'selesai',
+                            'notes' => 'Catatan 1.',
+                        ],
+                        [
+                            'category' => 'kedisiplinan_karyawan',
+                            'follow_up_status' => 'dalam_proses',
+                            'notes' => 'Catatan 2.',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors('employees.0.categories.1.category');
+    }
+
+    /**
+     * 12. Karyawan yang sama diduplikasi dalam satu laporan ditolak.
+     */
+    public function test_duplicate_employee_id_in_same_report_is_rejected(): void
+    {
+        $this->actingAs($this->hrd, 'admin_hrd');
+
+        $response = $this->post(route('admin.hrd-reports.store'), [
+            'report_date' => '2026-10-28',
+            'report_type' => 'employee',
+            'employees' => [
+                [
+                    'input_mode' => 'select',
+                    'employee_id' => $this->activeEmployee->id,
+                    'categories' => [
+                        [
+                            'category' => 'kedisiplinan_karyawan',
+                            'follow_up_status' => 'selesai',
+                            'notes' => 'Catatan 1.',
+                        ],
+                    ],
+                ],
+                [
+                    'input_mode' => 'select',
+                    'employee_id' => $this->activeEmployee->id,
+                    'categories' => [
+                        [
+                            'category' => 'sikap_perilaku',
+                            'follow_up_status' => 'dalam_proses',
+                            'notes' => 'Catatan 2.',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors('employees.1.employee_id');
+    }
+
+    /**
+     * 13. Monitoring kantor dapat menyimpan beberapa kategori dan tindakan.
      */
     public function test_office_monitoring_stores_multiple_categories_and_actions(): void
     {
         $this->actingAs($this->hrd, 'admin_hrd');
 
         $response = $this->post(route('admin.hrd-reports.store'), [
-            'report_date' => '2026-10-27',
+            'report_date' => '2026-10-28',
             'report_type' => 'office',
             'office_items' => [
                 [
@@ -277,34 +561,15 @@ class HrdDailyReportTest extends TestCase
     }
 
     /**
-     * 8. Kategori duplikat serta payload tidak valid ditolak.
+     * 14. Kategori kantor duplikat serta aksi tidak valid ditolak.
      */
-    public function test_duplicate_categories_and_invalid_payloads_are_rejected(): void
+    public function test_duplicate_office_categories_and_invalid_action_rejected(): void
     {
         $this->actingAs($this->hrd, 'admin_hrd');
 
-        // Kategori karyawan duplikat
-        $responseEmployeeDuplicate = $this->post(route('admin.hrd-reports.store'), [
-            'report_date' => '2026-10-27',
-            'report_type' => 'employee',
-            'input_mode' => 'manual',
-            'manual_employee_name' => 'Tes Duplikat',
-            'categories' => [
-                [
-                    'category' => 'kedisiplinan_karyawan',
-                    'notes' => 'Catatan 1.',
-                ],
-                [
-                    'category' => 'kedisiplinan_karyawan',
-                    'notes' => 'Catatan 2.',
-                ],
-            ],
-        ]);
-        $responseEmployeeDuplicate->assertSessionHasErrors('categories.1.category');
-
         // Kategori kantor duplikat
         $responseOfficeDuplicate = $this->post(route('admin.hrd-reports.store'), [
-            'report_date' => '2026-10-27',
+            'report_date' => '2026-10-28',
             'report_type' => 'office',
             'office_items' => [
                 [
@@ -325,7 +590,7 @@ class HrdDailyReportTest extends TestCase
 
         // Tindakan tidak valid
         $responseInvalidAction = $this->post(route('admin.hrd-reports.store'), [
-            'report_date' => '2026-10-27',
+            'report_date' => '2026-10-28',
             'report_type' => 'office',
             'office_items' => [
                 [
@@ -340,7 +605,7 @@ class HrdDailyReportTest extends TestCase
     }
 
     /**
-     * 9. Jenis laporan employee dan office menyimpan data sesuai jenisnya.
+     * 15. Isolasi payload antara monitoring karyawan dan kantor.
      */
     public function test_payload_isolation_between_employee_and_office(): void
     {
@@ -348,10 +613,21 @@ class HrdDailyReportTest extends TestCase
 
         // Simpan office tapi coba selipkan data employee
         $this->post(route('admin.hrd-reports.store'), [
-            'report_date' => '2026-10-27',
+            'report_date' => '2026-10-28',
             'report_type' => 'office',
-            'employee_id' => $this->activeEmployee->id,
-            'manual_employee_name' => 'Nama Yang Harusnya Dihapus',
+            'employees' => [
+                [
+                    'input_mode' => 'select',
+                    'employee_id' => $this->activeEmployee->id,
+                    'categories' => [
+                        [
+                            'category' => 'kedisiplinan_karyawan',
+                            'follow_up_status' => 'selesai',
+                            'notes' => 'catatan',
+                        ],
+                    ],
+                ],
+            ],
             'office_items' => [
                 [
                     'category' => 'kebersihan_kerapian',
@@ -368,7 +644,7 @@ class HrdDailyReportTest extends TestCase
     }
 
     /**
-     * 10. Nama pembuat tetap tersedia pada arsip setelah akun pembuat dihapus (ON DELETE SET NULL).
+     * 16. Nama pembuat tetap tersedia pada arsip setelah akun pembuat dihapus (ON DELETE SET NULL).
      */
     public function test_creator_snapshot_persists_when_user_account_is_deleted(): void
     {
@@ -383,14 +659,19 @@ class HrdDailyReportTest extends TestCase
         $this->actingAs($tempHrd, 'admin_hrd');
 
         $this->post(route('admin.hrd-reports.store'), [
-            'report_date' => '2026-10-27',
+            'report_date' => '2026-10-28',
             'report_type' => 'employee',
-            'input_mode' => 'manual',
-            'manual_employee_name' => 'Dina Akuntansi',
-            'categories' => [
+            'employees' => [
                 [
-                    'category' => 'kepatuhan_aturan',
-                    'notes' => 'Tertib mengenakan seragam kerja.',
+                    'input_mode' => 'manual',
+                    'manual_employee_name' => 'Dina Akuntansi',
+                    'categories' => [
+                        [
+                            'category' => 'kepatuhan_aturan',
+                            'follow_up_status' => 'selesai',
+                            'notes' => 'Tertib mengenakan seragam kerja.',
+                        ],
+                    ],
                 ],
             ],
         ]);
@@ -408,35 +689,112 @@ class HrdDailyReportTest extends TestCase
     }
 
     /**
-     * 11. Halaman daftar dan detail berhasil dirender.
+     * 17. Halaman daftar dan detail berhasil dirender, termasuk backward-compatibility untuk laporan lama.
      */
-    public function test_index_and_show_pages_render_successfully(): void
+    public function test_index_and_show_pages_render_successfully_including_legacy_reports(): void
     {
         $this->actingAs($this->admin, 'admin_hrd');
 
-        $report = HrdDailyReport::create([
+        // Laporan format baru: status per kategori
+        $newReport = HrdDailyReport::create([
+            'admin_hrd_user_id' => $this->admin->id,
+            'creator_name_snapshot' => $this->admin->name,
+            'report_date' => '2026-10-28',
+            'report_type' => 'employee',
+            'employee_id' => $this->activeEmployee->id,
+            'employee_name' => 'Budi Santoso, Siti Aminah',
+            'monitoring_data' => [
+                [
+                    'employee_id' => $this->activeEmployee->id,
+                    'employee_name' => 'Budi Santoso',
+                    'input_mode' => 'select',
+                    'categories' => [
+                        [
+                            'category' => 'kerja_sama',
+                            'follow_up_status' => 'selesai',
+                            'notes' => 'Membantu tim logistik menyelesaikan packing.',
+                        ],
+                    ],
+                ],
+                [
+                    'employee_id' => $this->activeEmployee2->id,
+                    'employee_name' => 'Siti Aminah',
+                    'input_mode' => 'select',
+                    'categories' => [
+                        [
+                            'category' => 'komunikasi_koordinasi',
+                            'follow_up_status' => 'dalam_proses',
+                            'notes' => 'Follow up klien berjalan.',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        // Laporan format versi sebelumnya (status di level karyawan)
+        $previousVersionReport = HrdDailyReport::create([
+            'admin_hrd_user_id' => $this->admin->id,
+            'creator_name_snapshot' => $this->admin->name,
+            'report_date' => '2026-10-28',
+            'report_type' => 'employee',
+            'employee_id' => $this->activeEmployee->id,
+            'employee_name' => 'Budi Santoso',
+            'monitoring_data' => [
+                [
+                    'employee_id' => $this->activeEmployee->id,
+                    'employee_name' => 'Budi Santoso',
+                    'input_mode' => 'select',
+                    'follow_up_status' => 'menunggu_pihak_terkait',
+                    'categories' => [
+                        [
+                            'category' => 'kedisiplinan_karyawan',
+                            'notes' => 'Catatan format perantara.',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        // Laporan format lama (single-employee flat legacy format)
+        $legacyReport = HrdDailyReport::create([
             'admin_hrd_user_id' => $this->admin->id,
             'creator_name_snapshot' => $this->admin->name,
             'report_date' => '2026-10-27',
             'report_type' => 'employee',
             'employee_id' => $this->activeEmployee->id,
-            'employee_name' => $this->activeEmployee->name,
+            'employee_name' => 'Budi Santoso',
             'monitoring_data' => [
                 [
-                    'category' => 'kerja_sama',
-                    'notes' => 'Membantu tim logistik menyelesaikan packing inventaris.',
+                    'category' => 'sikap_perilaku',
+                    'notes' => 'Catatan legacy report format lama.',
                 ],
             ],
         ]);
 
         $indexRes = $this->get(route('admin.hrd-reports.index'));
         $indexRes->assertStatus(200);
-        $indexRes->assertSee('Budi Santoso');
-        $indexRes->assertSee('Monitoring Karyawan');
+        $indexRes->assertSee('Budi Santoso, Siti Aminah');
+        $indexRes->assertSee('2 Karyawan');
 
-        $showRes = $this->get(route('admin.hrd-reports.show', $report));
-        $showRes->assertStatus(200);
-        $showRes->assertSee('Kerja Sama Antarkaryawan');
-        $showRes->assertSee('Membantu tim logistik menyelesaikan packing inventaris.');
+        // Detail laporan baru (status per kategori)
+        $showNewRes = $this->get(route('admin.hrd-reports.show', $newReport));
+        $showNewRes->assertStatus(200);
+        $showNewRes->assertSee('Budi Santoso');
+        $showNewRes->assertSee('Siti Aminah');
+        $showNewRes->assertSee('Selesai');
+        $showNewRes->assertSee('Dalam proses');
+        $showNewRes->assertSee('Membantu tim logistik menyelesaikan packing.');
+
+        // Detail laporan versi sebelumnya
+        $showPrevRes = $this->get(route('admin.hrd-reports.show', $previousVersionReport));
+        $showPrevRes->assertStatus(200);
+        $showPrevRes->assertSee('Menunggu pihak terkait');
+        $showPrevRes->assertSee('Catatan format perantara.');
+
+        // Detail laporan legacy format flat
+        $showLegacyRes = $this->get(route('admin.hrd-reports.show', $legacyReport));
+        $showLegacyRes->assertStatus(200);
+        $showLegacyRes->assertSee('Budi Santoso');
+        $showLegacyRes->assertSee('Catatan legacy report format lama.');
     }
 }

@@ -67,6 +67,16 @@
                                     <td class="py-3.5 px-6">
                                         @if ($report->report_type === 'employee')
                                             <div class="font-medium text-slate-900">{{ $report->employee_name }}</div>
+                                            @php
+                                                $data = is_array($report->monitoring_data) ? $report->monitoring_data : [];
+                                                $isMulti = isset($data[0]['categories']);
+                                                $count = $isMulti ? count($data) : 1;
+                                            @endphp
+                                            @if ($count > 1)
+                                                <span class="inline-block mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700">
+                                                    {{ $count }} Karyawan
+                                                </span>
+                                            @endif
                                         @else
                                             <div class="text-slate-500 italic text-xs">Monitoring Kantor</div>
                                         @endif

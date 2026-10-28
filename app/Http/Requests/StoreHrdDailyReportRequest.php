@@ -38,7 +38,7 @@ class StoreHrdDailyReportRequest extends FormRequest
     ];
 
     /**
-     * Pilihan tindakan HRD yang diizinkan.
+     * Pilihan tindakan HRD untuk kondisi kantor.
      *
      * @var list<string>
      */
@@ -48,6 +48,19 @@ class StoreHrdDailyReportRequest extends FormRequest
         'koordinasi_atasan',
         'melaporkan_kerusakan',
         'mengajukan_perbaikan',
+    ];
+
+    /**
+     * Pilihan Status Tindak Lanjut HRD untuk kategori monitoring karyawan.
+     *
+     * @var array<string, string>
+     */
+    public const FOLLOW_UP_STATUSES = [
+        'selesai' => 'Selesai',
+        'dalam_proses' => 'Dalam proses',
+        'menunggu_pihak_terkait' => 'Menunggu pihak terkait',
+        'perlu_monitoring_lanjutan' => 'Perlu monitoring lanjutan',
+        'memerlukan_keputusan_direktur' => 'Memerlukan keputusan Direktur',
     ];
 
     /**
@@ -73,21 +86,31 @@ class StoreHrdDailyReportRequest extends FormRequest
         ];
 
         if ($reportType === 'employee') {
-            $rules['input_mode'] = ['required', 'in:select,manual'];
-
-            if ($this->input('input_mode') === 'select') {
-                $rules['employee_id'] = [
-                    'required',
-                    'integer',
-                    Rule::exists('employees', 'id')->where('is_active', true),
-                ];
-            } else {
-                $rules['manual_employee_name'] = ['required', 'string', 'min:2', 'max:255'];
-            }
-
-            $rules['categories'] = ['required', 'array', 'min:1'];
-            $rules['categories.*.category'] = ['required', 'string', Rule::in(self::EMPLOYEE_CATEGORIES)];
-            $rules['categories.*.notes'] = ['required', 'string'];
+            $rules['employees'] = ['required', 'array', 'min:1'];
+            $rules['employees.*.input_mode'] = ['required', 'in:select,manual'];
+            $rules['employees.*.employee_id'] = [
+                'nullable',
+                'integer',
+                Rule::exists('employees', 'id')->where('is_active', true),
+            ];
+            $rules['employees.*.manual_employee_name'] = [
+                'nullable',
+                'string',
+                'min:2',
+                'max:255',
+            ];
+            $rules['employees.*.categories'] = ['required', 'array', 'min:1'];
+            $rules['employees.*.categories.*.category'] = [
+                'required',
+                'string',
+                Rule::in(self::EMPLOYEE_CATEGORIES),
+            ];
+            $rules['employees.*.categories.*.follow_up_status'] = [
+                'required',
+                'string',
+                Rule::in(array_keys(self::FOLLOW_UP_STATUSES)),
+            ];
+            $rules['employees.*.categories.*.notes'] = ['required', 'string'];
         }
 
         if ($reportType === 'office') {
@@ -109,20 +132,56 @@ class StoreHrdDailyReportRequest extends FormRequest
         $validator->after(function (Validator $validator) {
             $reportType = $this->input('report_type');
 
-            // Validasi kategori duplikat pada monitoring karyawan
             if ($reportType === 'employee') {
-                $categories = (array) $this->input('categories', []);
-                $seen = [];
-                foreach ($categories as $index => $item) {
-                    if (is_array($item)) {
-                        $cat = $item['category'] ?? '';
-                        if (in_array($cat, $seen)) {
+                $employees = (array) $this->input('employees', []);
+                $seenEmployeeIds = [];
+
+                foreach ($employees as $empIndex => $empData) {
+                    if (! is_array($empData)) {
+                        continue;
+                    }
+
+                    $inputMode = $empData['input_mode'] ?? 'select';
+
+                    if ($inputMode === 'select') {
+                        if (empty($empData['employee_id'])) {
                             $validator->errors()->add(
-                                "categories.{$index}.category",
-                                'Kategori tidak boleh dipilih lebih dari satu kali dalam satu laporan.'
+                                "employees.{$empIndex}.employee_id",
+                                'Nama karyawan wajib dipilih dari daftar.'
+                            );
+                        } else {
+                            $empId = $empData['employee_id'];
+                            if (in_array($empId, $seenEmployeeIds)) {
+                                $validator->errors()->add(
+                                    "employees.{$empIndex}.employee_id",
+                                    'Karyawan ini sudah ditambahkan sebelumnya dalam laporan yang sama.'
+                                );
+                            }
+                            $seenEmployeeIds[] = $empId;
+                        }
+                    } else {
+                        if (empty(trim((string) ($empData['manual_employee_name'] ?? '')))) {
+                            $validator->errors()->add(
+                                "employees.{$empIndex}.manual_employee_name",
+                                'Nama karyawan manual wajib diisi.'
                             );
                         }
-                        $seen[] = $cat;
+                    }
+
+                    // Validasi kategori duplikat pada karyawan yang sama
+                    $categories = (array) ($empData['categories'] ?? []);
+                    $seenCategories = [];
+                    foreach ($categories as $catIndex => $catItem) {
+                        if (is_array($catItem)) {
+                            $cat = $catItem['category'] ?? '';
+                            if (in_array($cat, $seenCategories)) {
+                                $validator->errors()->add(
+                                    "employees.{$empIndex}.categories.{$catIndex}.category",
+                                    'Kategori tidak boleh dipilih lebih dari satu kali untuk karyawan ini.'
+                                );
+                            }
+                            $seenCategories[] = $cat;
+                        }
                     }
                 }
             }
@@ -157,12 +216,14 @@ class StoreHrdDailyReportRequest extends FormRequest
         return [
             'report_date' => 'Tanggal Laporan',
             'report_type' => 'Jenis Monitoring',
-            'input_mode' => 'Mode Input Karyawan',
-            'employee_id' => 'Nama Karyawan',
-            'manual_employee_name' => 'Nama Karyawan (Manual)',
-            'categories' => 'Kategori Monitoring',
-            'categories.*.category' => 'Kategori',
-            'categories.*.notes' => 'Catatan Kategori',
+            'employees' => 'Daftar Karyawan',
+            'employees.*.input_mode' => 'Mode Input Karyawan',
+            'employees.*.employee_id' => 'Nama Karyawan',
+            'employees.*.manual_employee_name' => 'Nama Karyawan (Manual)',
+            'employees.*.categories' => 'Kategori Monitoring',
+            'employees.*.categories.*.category' => 'Kategori',
+            'employees.*.categories.*.follow_up_status' => 'Status Tindak Lanjut HRD',
+            'employees.*.categories.*.notes' => 'Detail Catatan',
             'office_items' => 'Item Kondisi Kantor',
             'office_items.*.category' => 'Kategori Kantor',
             'office_items.*.finding' => 'Detail Temuan',
@@ -179,12 +240,15 @@ class StoreHrdDailyReportRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'categories.required' => 'Minimal satu kategori monitoring wajib dipilih.',
-            'categories.min' => 'Minimal satu kategori monitoring wajib dipilih.',
+            'employees.required' => 'Minimal satu entri karyawan wajib ditambahkan.',
+            'employees.min' => 'Minimal satu entri karyawan wajib ditambahkan.',
+            'employees.*.categories.required' => 'Minimal satu kategori monitoring wajib dipilih untuk karyawan ini.',
+            'employees.*.categories.min' => 'Minimal satu kategori monitoring wajib dipilih untuk karyawan ini.',
+            'employees.*.categories.*.follow_up_status.required' => 'Status Tindak Lanjut HRD wajib dipilih untuk kategori ini.',
+            'employees.*.categories.*.follow_up_status.in' => 'Pilihan Status Tindak Lanjut HRD tidak valid.',
             'office_items.required' => 'Minimal satu kategori kondisi kantor wajib dipilih.',
             'office_items.min' => 'Minimal satu kategori kondisi kantor wajib dipilih.',
-            'employee_id.exists' => 'Karyawan yang dipilih tidak valid atau tidak aktif.',
-            'manual_employee_name.required' => 'Nama karyawan wajib diisi.',
+            'employees.*.employee_id.exists' => 'Karyawan yang dipilih tidak valid atau tidak aktif.',
         ];
     }
 }
